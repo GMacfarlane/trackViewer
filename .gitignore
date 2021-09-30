@@ -17,3 +17,5 @@ examples/js/sylvester.js
 /trackViewer.code-workspace
 /.idea/vcs.xml
 /.idea/Hyperlapse.js.iml
+/.idea/.gitignore
+
