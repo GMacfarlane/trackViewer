@@ -12,3 +12,8 @@ examples/videostab.html
 examples/js/videostab
 examples/js/ransac.js
 examples/js/sylvester.js
+/.idea/misc.xml
+/.idea/modules.xml
+/trackViewer.code-workspace
+/.idea/vcs.xml
+/.idea/Hyperlapse.js.iml
