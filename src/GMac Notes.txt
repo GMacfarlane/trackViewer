@@ -1,0 +1,14 @@
+API Keys on Google Cloud Platform (GCP)
+
+Project name: gmtrackviewer
+Linked to billing account: macfarlane.biz
+
+API Key: AIzaSyARujntlITp8qU7rW73jPDPSzYIG3BATtE
+
+Original code is:
+- examples/viewer.html
+- src/Hyperlapse.js
+
+My modified code is:
+- examples/gpxViewer.html
+- src/trackViewer.js

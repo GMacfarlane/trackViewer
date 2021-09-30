@@ -8,7 +8,7 @@
 	<script src="js/dat.gui.min.js"></script>
 	<script src="js/three.min.js"></script>
 	<script src="js/GSVPano.js"></script>
-	<script src="../src/Hyperlapse.js"></script>
+	<script src="../src/trackViewer.js"></script>
 	<script> 
 	
 		var start_point = new google.maps.LatLng(44.3431,6.783936);
@@ -143,7 +143,7 @@
 				width: window.innerWidth,
 				height: window.innerHeight,
 				zoom: 2,
-				use_lookat: true,
+				use_lookat: false,
 				distance_between_points: 5,
 				max_points: 100,
 				elevation: _elevation
@@ -246,7 +246,7 @@
 				offset_z:0,
 				position_x:0,
 				position_y:0,
-				use_lookat:true,
+				use_lookat:false,
 				screen_width: window.innerWidth,
 				screen_height: window.innerHeight,
 				generate:function(){
