@@ -3,5 +3,5 @@
 // Project name: gmtrackviewer
 // Linked to billing account: macfarlane.biz
 
-const maps_api_key="xxx";
+const maps_api_key="qqq";
 
