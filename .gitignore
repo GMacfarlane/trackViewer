@@ -20,3 +20,5 @@ examples/js/sylvester.js
 /.idea/.gitignore
 /.idea/trackViewer.iml
 /examples/secrets.js
+/DoNotCheckIn/
+/examples/exviewer.html
