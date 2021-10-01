@@ -4,6 +4,25 @@
 	<meta http-equiv="content-type" content="text/html; charset=UTF-8"/> 
 	<title>Viewer Example</title>
 
+	<!-- TODO dynamically load the API key
+  const loadGoogleMaps = (callback) => {
+  const existingScript = document.getElementById('googleMaps');
+
+  if (!existingScript) {
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=<API Key>&libraries=places';
+    script.id = 'googleMaps';
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      if (callback) callback();
+    };
+  }
+
+  if (existingScript && callback) callback();
+};
+	-->
+	
 	<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&key=AIzaSyARujntlITp8qU7rW73jPDPSzYIG3BATtE" type="text/javascript"></script>
 	<script src="js/dat.gui.min.js"></script>
 	<script src="js/three.min.js"></script>
