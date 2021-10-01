@@ -18,5 +18,5 @@ examples/js/sylvester.js
 /.idea/vcs.xml
 /.idea/Hyperlapse.js.iml
 /.idea/.gitignore
-
 /.idea/trackViewer.iml
+src/ApiKey.js
