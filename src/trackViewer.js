@@ -470,7 +470,7 @@ var Hyperlapse = function(container, params) {
 			var o_heading = (self.use_lookat) ? _lookat_heading - _origin_heading.toDeg() + o_x : o_x;
 			if (!_forward) o_heading = o_heading -180;
 			*/
-			var o_heading = (_forward) ? o_x : o_x - 180;
+			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
 			var o_pitch = _position_y + o_y;
 
 			var olon = _lon, olat = _lat;
