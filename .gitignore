@@ -19,4 +19,4 @@ examples/js/sylvester.js
 /.idea/Hyperlapse.js.iml
 /.idea/.gitignore
 /.idea/trackViewer.iml
-/src/secrets.js
+/examples/secrets.js
