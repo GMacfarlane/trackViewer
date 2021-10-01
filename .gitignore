@@ -19,6 +19,5 @@ examples/js/sylvester.js
 /.idea/Hyperlapse.js.iml
 /.idea/.gitignore
 /.idea/trackViewer.iml
-/examples/secrets.js
 /DoNotCheckIn/
-/examples/exviewer.html
+/examples/viewer.html
