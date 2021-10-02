@@ -1,5 +1,6 @@
-var start_point = new google.maps.LatLng(44.3431,6.783936);
-var end_point = new google.maps.LatLng(44.340578,6.782684);
+var start_point = new google.maps.LatLng(51.30750,-0.57285)
+var end_point   = new google.maps.LatLng(51.29360,-0.60011);
+
 var map, directions_renderer, directions_service, streetview_service, geocoder;
 var start_pin, end_pin, camera_pin;
 var _elevation = 0;
