@@ -1,7 +1,7 @@
 var start_point = new google.maps.LatLng(51.30750,-0.57285)
 var end_point   = new google.maps.LatLng(51.29360,-0.60011);
 
-var map, directions_renderer, directions_service, streetview_service, geocoder;
+var map, directions_renderer, directions_service, streetview_service;
 var start_pin, end_pin, camera_pin;
 var _elevation = 0;
 var _route_markers = [];
@@ -21,8 +21,6 @@ function init() {
     };
 
     map = new google.maps.Map(document.getElementById("map"), mapOpt);
-    geocoder = new google.maps.Geocoder();
-
     var overlay = new google.maps.StreetViewCoverageLayer();
     overlay.setMap(map);
 
