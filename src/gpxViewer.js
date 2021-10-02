@@ -256,6 +256,7 @@ var Hyperlapse = function(container, params) {
 	var parsePoints = function(response) {
 
 		_loader.load( _raw_points[_point_index], function() {
+            var complete = false;
 
 			if(_loader.id != _prev_pano_id) {
 				_prev_pano_id = _loader.id;
@@ -268,28 +269,20 @@ var Hyperlapse = function(container, params) {
 				} );
 
 				_h_points.push( hp );
-
 				handleRouteProgress( {point: hp} );
-
-				if(_point_index == _raw_points.length-1) { // todo refac dup code
-					if (self.onRouteComplete) self.onRouteComplete({response: response, points: _h_points});
-				} else {
-					_point_index++;
-					if(!_cancel_load) parsePoints(response);
-					else handleLoadCanceled( {} );
-				}
+				complete = (_point_index == _raw_points.length-1);
+				if (!complete) _point_index++;
 			} else {
-
 				_raw_points.splice(_point_index, 1);
-
-				if(_point_index == _raw_points.length) { // todo refac dup code
-					if (self.onRouteComplete) self.onRouteComplete({response: response, points: _h_points});
-				} else {
-					if(!_cancel_load) parsePoints(response);
-					else handleLoadCanceled( {} );
-				}
-
+				complete = (_point_index == _raw_points.length);
 			}
+
+			if (complete) {
+                if (self.onRouteComplete) self.onRouteComplete({response: response, points: _h_points});
+            } else {
+                if(!_cancel_load) parsePoints(response);
+                else handleLoadCanceled( {} );
+            }
 
 		} );
 	};
