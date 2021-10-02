@@ -105,8 +105,8 @@ function init() {
         onPointerDownPointerX = e.clientX;
         onPointerDownPointerY = e.clientY;
 
-        px = hyperlapse.position.x;
-        py = hyperlapse.position.y;
+        px = hlp.position.x;
+        py = hlp.position.y;
 
     }, false );
 
@@ -117,11 +117,8 @@ function init() {
         if ( is_moving ) {
             var dx = ( onPointerDownPointerX - e.clientX ) * f;
             var dy = ( e.clientY - onPointerDownPointerY ) * f;
-            hyperlapse.position.x = px + dx; // reversed dragging direction (thanks @mrdoob!)
-            hyperlapse.position.y = py + dy;
-
-            o.position_x = hyperlapse.position.x;
-            o.position_y = hyperlapse.position.y;
+            hlp.position.x = px + dx; // reversed dragging direction (thanks @mrdoob!)
+            hlp.position.y = py + dy;
         }
 
     }, false );
@@ -129,8 +126,8 @@ function init() {
     pano.addEventListener( 'mouseup', function(){
         is_moving = false;
 
-        hyperlapse.position.x = px;
-        //hyperlapse.position.y = py;
+        hlp.position.x = px;
+        //hlp.position.y = py;
     }, false );
 
     /* Dat GUI */
@@ -138,14 +135,10 @@ function init() {
     var gui = new dat.GUI();
 
     var o = {
-        distance_between_points:10,
-        max_points:100,
-        tilt:0,
+
         offset_x:0,
         offset_y:0,
         offset_z:0,
-        position_x:0,
-        position_y:0,
         screen_width: window.innerWidth,
         screen_height: window.innerHeight,
         generate:function(){
@@ -167,7 +160,7 @@ function init() {
 
             directions_service.route(request, function(response, status) {
                 if (status == google.maps.DirectionsStatus.OK) {
-                    hyperlapse.generate({route: response});
+                    hyperlapse.generate(response);
                 } else {
                     console.log(status);
                 }
@@ -182,20 +175,14 @@ function init() {
     var rp = gui.addFolder('Run-time Parameters');
     rp.add(hlp, 'fov', 1, 180).step(1).name("FOV / Deg ").onChange(hyperlapse.setFOV);
     rp.add(hlp, 'millis', 10, 300).step(1).name("Speed / ms");
+    rp.add(hlp.position, 'x', -360, 360).listen().name("Position:X");
+    rp.add(hlp.position, 'y', -180, 180).listen().name("Position:Y");
 
     rp.open();
 
     var gp = gui.addFolder('Gen-time Parameters');
-
-    var distance_between_points_control = gp.add(o, 'distance_between_points', 5, 100);
-    distance_between_points_control.onChange(function(value) {
-        hyperlapse.setDistanceBetweenPoint(value);
-    });
-
-    var max_points = gp.add(o, 'max_points', 10, 500);
-    max_points.onChange(function(value) {
-        hyperlapse.setMaxPoints(value);
-    });
+    gp.add(hlp, 'distance_between_points', 5, 100).name("Dist btwn pts / m")
+    gp.add(hlp, 'max_points', 10, 500).name("Max points");
 
     var offset_x_control = gp.add(o, 'offset_x', -360, 360);
     offset_x_control.onChange(function(value) {
@@ -212,16 +199,6 @@ function init() {
         hyperlapse.offset.z = value;
     });
 
-    var position_x_control = gp.add(o, 'position_x', -360, 360).listen();
-    position_x_control.onChange(function(value) {
-        hyperlapse.position.x = value;
-    });
-
-    var position_y_control = gp.add(o, 'position_y', -180, 180).listen();
-    position_y_control.onChange(function(value) {
-        hyperlapse.position.y = value;
-    });
-
     gp.add(o, 'generate');
     gp.add(hyperlapse, 'load');
 
@@ -233,7 +210,6 @@ function init() {
     play_controls.add(hyperlapse, 'next');
     play_controls.add(hyperlapse, 'prev');
     play_controls.open();
-
 
     window.addEventListener('resize', function(){
         hyperlapse.setSize(window.innerWidth, window.innerHeight);

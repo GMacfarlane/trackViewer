@@ -96,8 +96,13 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  * and this simplifies the duplication of settings and values for the viewer UI.
  */
 var hlp = {
+// runtime
   fov: 120,     // Field of view / Deg
-  millis: 200   // Speed / ms
+  millis: 200,   // Speed / ms
+  position: {x:0, y:0}, // Camera position / Deg
+  //gen-time
+          distance_between_points:10, // Distance between hyperlapse points / m
+          max_points:50 // Max no of hyperlapse points
 };
 
 /**
@@ -107,8 +112,6 @@ var hlp = {
  * @param {Object} params
  * @param {Number} [params.width=800]
  * @param {Number} [params.height=400]
- * @param {Number} [params.distance_between_points=5]
- * @param {Number} [params.max_points=100]
  * @param {Number} [params.zoom=1]
  */
 var Hyperlapse = function(container, params) {
@@ -122,11 +125,8 @@ var Hyperlapse = function(container, params) {
 		_w = _params.width || 800,
 		_h = _params.height || 400,
 		_d = 20,
-		_distance_between_points = _params.distance_between_points || 5,
-		_max_points = _params.max_points || 100,
 		_zoom = _params.zoom || 1,
 		_lat = 0, _lon = 0,
-		_position_x = 0, _position_y = 0,
 		_is_playing = false, _is_loading = false,
 		_point_index = 0,
 		_origin_heading = 0, _origin_pitch = 0,
@@ -294,8 +294,6 @@ var Hyperlapse = function(container, params) {
 		} );
 	};
 
-
-
 	var handleDirectionsRoute = function(response) {
 		if(!_is_playing) {
 
@@ -308,8 +306,8 @@ var Hyperlapse = function(container, params) {
 				total_distance += legs[i].distance.value;
 			}
 
-			var segment_length = total_distance/_max_points;
-			_d = (segment_length < _distance_between_points) ? _d = _distance_between_points : _d = segment_length;
+			var segment_length = total_distance/hlp.max_points;
+			_d = (segment_length < hlp.distance_between_points) ? _d = hlp.distance_between_points : _d = segment_length;
 
 			var d = 0;
 			var r = 0;
@@ -381,12 +379,12 @@ var Hyperlapse = function(container, params) {
 		if(!_is_loading && self.length()>0) {
 			var t = _point_index/(self.length());
 
-			var o_x = self.position.x + (self.offset.x * t);
-			var o_y = self.position.y + (self.offset.y * t);
+			var o_x = hlp.position.x + (self.offset.x * t);
+			var o_y = hlp.position.y + (self.offset.y * t);
 			var o_z = (self.offset.z.toRad() * t);
 
 			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
-			var o_pitch = _position_y + o_y;
+			var o_pitch = hlp.position.y + o_y;
 
 			var olon = _lon, olat = _lat;
 			_lon = _lon + ( o_heading - olon );
@@ -438,12 +436,6 @@ var Hyperlapse = function(container, params) {
 	};
 
 	/**
-	 * @default {x:0, y:0}
-	 * @type {Object}
-	 */
-	this.position = {x:0, y:0};
-
-	/**
 	 * @default {x:0, y:0, z:0}
 	 * @type {Object}
 	 */
@@ -463,21 +455,6 @@ var Hyperlapse = function(container, params) {
 	 * @returns {Number}
 	 */
 	this.length = function() { return _h_points.length; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setPitch = function(v) { _position_y = v; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setDistanceBetweenPoint = function(v) { _distance_between_points = v; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setMaxPoints = function(v) { _max_points = v; };
 
 	/**
 	 * @returns {THREE.WebGLRenderer}
@@ -527,12 +504,9 @@ var Hyperlapse = function(container, params) {
 		_lat = 0;
 		_lon = 0;
 
-		self.position.x = 0;
 		self.offset.x = 0;
 		self.offset.y = 0;
 		self.offset.z = 0;
-		_position_x = 0;
-		_position_y = 0;
 
 		_point_index = 0;
 		_origin_heading = 0;
@@ -542,23 +516,16 @@ var Hyperlapse = function(container, params) {
 	};
 
 	/**
-	 * @param {Object} parameters
-	 * @param {Number} [parameters.distance_between_points]
-	 * @param {Number} [parameters.max_points]
-	 * @param {google.maps.DirectionsResult} parameters.route
+	 * @param {google.maps.DirectionsResult} route
 	 */
-	this.generate = function( params ) {
+	this.generate = function( route ) {
 
 		if(!_is_loading) {
 			_is_loading = true;
 			self.reset();
 
-			var p = params || {};
-			_distance_between_points = p.distance_between_points || _distance_between_points;
-			_max_points = p.max_points || _max_points;
-
-			if(p.route) {
-				handleDirectionsRoute(p.route);
+			if(route) {
+				handleDirectionsRoute(route);
 			} else {
 				console.log("No route provided.");
 			}
