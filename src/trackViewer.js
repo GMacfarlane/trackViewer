@@ -53,8 +53,6 @@ function init() {
     var onPointerDownPointerX=0, onPointerDownPointerY=0;
 
     var hyperlapse = new Hyperlapse(pano, {
-        fov: 120,
-        millis: 100,
         width: window.innerWidth,
         height: window.innerHeight,
         zoom: 2,
@@ -114,7 +112,7 @@ function init() {
 
     pano.addEventListener( 'mousemove', function(e){
         e.preventDefault();
-        var f = hyperlapse.fov() / 500;
+        var f = hlp.fov / 500;
 
         if ( is_moving ) {
             var dx = ( onPointerDownPointerX - e.clientX ) * f;
@@ -142,9 +140,7 @@ function init() {
     var o = {
         distance_between_points:10,
         max_points:100,
-        fov: 120,
         tilt:0,
-        millis:100,
         offset_x:0,
         offset_y:0,
         offset_z:0,
@@ -180,73 +176,69 @@ function init() {
     };
 
 
-    var scn = gui.addFolder('screen');
+    var scn = gui.addFolder('Screen size');
     scn.add(o, 'screen_width', window.innerHeight).listen();
     scn.add(o, 'screen_height', window.innerHeight).listen();
 
-    var parameters = gui.addFolder('parameters');
+    var rp = gui.addFolder('Run-time Parameters');
+    rp.add(hlp, 'fov', 1, 180).step(1).name("FOV / Deg ").onChange(hyperlapse.setFOV);
+    rp.add(hlp, 'millis', 10, 300).step(1).name("Speed / ms");
+    rp.open();
 
-    var distance_between_points_control = parameters.add(o, 'distance_between_points', 5, 100);
+    var gp = gui.addFolder('Gen-time Parameters');
+
+    var distance_between_points_control = gp.add(o, 'distance_between_points', 5, 100);
     distance_between_points_control.onChange(function(value) {
         hyperlapse.setDistanceBetweenPoint(value);
     });
 
-    var max_points = parameters.add(o, 'max_points', 10, 500);
+    var max_points = gp.add(o, 'max_points', 10, 500);
     max_points.onChange(function(value) {
         hyperlapse.setMaxPoints(value);
     });
 
-    var fov_control = parameters.add(o, 'fov', 1, 180);
-    fov_control.onChange(function(value) {
-        hyperlapse.setFOV(value);
-    });
-
-    var millis_control = parameters.add(o, 'millis', 10, 300);
-    millis_control.onChange(function(value) {
-        hyperlapse.millis = value;
-    });
-
-    var offset_x_control = parameters.add(o, 'offset_x', -360, 360);
+    var offset_x_control = gp.add(o, 'offset_x', -360, 360);
     offset_x_control.onChange(function(value) {
         hyperlapse.offset.x = value;
     });
 
-    var offset_y_control = parameters.add(o, 'offset_y', -180, 180);
+    var offset_y_control = gp.add(o, 'offset_y', -180, 180);
     offset_y_control.onChange(function(value) {
         hyperlapse.offset.y = value;
     });
 
-    var offset_z_control = parameters.add(o, 'offset_z', -360, 360);
+    var offset_z_control = gp.add(o, 'offset_z', -360, 360);
     offset_z_control.onChange(function(value) {
         hyperlapse.offset.z = value;
     });
 
-    var position_x_control = parameters.add(o, 'position_x', -360, 360).listen();
+    var position_x_control = gp.add(o, 'position_x', -360, 360).listen();
     position_x_control.onChange(function(value) {
         hyperlapse.position.x = value;
     });
 
-    var position_y_control = parameters.add(o, 'position_y', -180, 180).listen();
+    var position_y_control = gp.add(o, 'position_y', -180, 180).listen();
     position_y_control.onChange(function(value) {
         hyperlapse.position.y = value;
     });
 
-    var tilt_control = parameters.add(o, 'tilt', -Math.PI, Math.PI);
+    var tilt_control = gp.add(o, 'tilt', -Math.PI, Math.PI);
     tilt_control.onChange(function(value) {
         hyperlapse.tilt = value;
     });
 
-    parameters.open();
+    gp.add(o, 'generate');
+    gp.add(hyperlapse, 'load');
 
-    var play_controls = gui.addFolder('play controls');
+    gp.open();
+
+    var play_controls = gui.addFolder('Player Controls');
     play_controls.add(hyperlapse, 'play');
     play_controls.add(hyperlapse, 'pause');
     play_controls.add(hyperlapse, 'next');
     play_controls.add(hyperlapse, 'prev');
     play_controls.open();
 
-    gui.add(o, 'generate');
-    gui.add(hyperlapse, 'load');
 
     window.addEventListener('resize', function(){
         hyperlapse.setSize(window.innerWidth, window.innerHeight);

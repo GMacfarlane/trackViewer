@@ -89,6 +89,17 @@ var HyperlapsePoint = function(location, pano_id, params ) {
 
 };
 
+/*
+ * Collection of hyperlapse parameters with default values
+ *
+ * broken-out of the class since there will only be one Hyperlapse object anyway,
+ * and this simplifies the duplication of settings and values for the viewer UI.
+ */
+var hlp = {
+  fov: 120,     // Field of view/Degrees
+  millis: 200   // Speed / ms
+};
+
 /**
  * @class
  * @constructor
@@ -98,9 +109,7 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  * @param {Number} [params.height=400]
  * @param {Number} [params.distance_between_points=5]
  * @param {Number} [params.max_points=100]
- * @param {Number} [params.fov=70]
  * @param {Number} [params.zoom=1]
- * @param {Number} [params.millis=50]
  * @param {Number} [params.tilt=0]
  */
 var Hyperlapse = function(container, params) {
@@ -116,7 +125,6 @@ var Hyperlapse = function(container, params) {
 		_d = 20,
 		_distance_between_points = _params.distance_between_points || 5,
 		_max_points = _params.max_points || 100,
-		_fov = _params.fov || 70,
 		_zoom = _params.zoom || 1,
 		_lat = 0, _lon = 0,
 		_position_x = 0, _position_y = 0,
@@ -162,7 +170,7 @@ var Hyperlapse = function(container, params) {
 	_canvas = document.createElement( 'canvas' );
 	_context = _canvas.getContext( '2d' );
 
-	_camera = new THREE.PerspectiveCamera( _fov, _w/_h, 1, 1100 );
+	_camera = new THREE.PerspectiveCamera( hlp.fov, _w/_h, 1, 1100 );
 	_camera.target = new THREE.Vector3( 0, 0, 0 );
 
 	_scene = new THREE.Scene();
@@ -404,7 +412,7 @@ var Hyperlapse = function(container, params) {
 		var ptime = _ctime;
 		_ctime = Date.now();
 		_dtime += _ctime - ptime;
-		if(_dtime >= self.millis) {
+		if(_dtime >= hlp.millis) {
 			if(_is_playing) loop();
 			_dtime = 0;
 		}
@@ -430,13 +438,7 @@ var Hyperlapse = function(container, params) {
 		}
 	};
 
-	/**
-	 * @default 50
-	 * @type {Number}
-	 */
-	this.millis = _params.millis || 50;
-
-		/**
+    /**
 	 * @deprecated should use offset instead
 	 * @default 0
 	 * @type {Number}
@@ -486,11 +488,6 @@ var Hyperlapse = function(container, params) {
 	this.setMaxPoints = function(v) { _max_points = v; };
 
 	/**
-	 * @returns {Number}
-	 */
-	this.fov = function() { return _fov; };
-
-	/**
 	 * @returns {THREE.WebGLRenderer}
 	 */
 	this.webgl = function() { return _renderer; };
@@ -513,8 +510,8 @@ var Hyperlapse = function(container, params) {
 	 * @param {Number} v
 	 */
 	this.setFOV = function(v) {
-		_fov = Math.floor(v);
-		_camera.projectionMatrix.makePerspective( _fov, _w/_h, 1, 1100 );
+		hlp.fov = Math.floor(v);
+		_camera.projectionMatrix.makePerspective( hlp.fov, _w/_h, 1, 1100 );
 	};
 
 	/**
@@ -525,7 +522,7 @@ var Hyperlapse = function(container, params) {
 		_w = width;
 		_h = height;
 		_renderer.setSize( _w, _h );
-		_camera.projectionMatrix.makePerspective( _fov, _w/_h, 1, 1100 );
+		_camera.projectionMatrix.makePerspective( hlp.fov, _w/_h, 1, 1100 );
 	};
 
 	/**
