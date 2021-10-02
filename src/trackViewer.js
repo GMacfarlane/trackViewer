@@ -11,7 +11,7 @@ function show(msg) {
 
 function init() {
 
-    /* Map */
+    /* Map -------------------------------------------- */
 
     var mapOpt = {
         mapTypeId: google.maps.MapTypeId.ROADMAP,
@@ -45,20 +45,15 @@ function init() {
         map: map
     });
 
-    /* Hyperlapse */
+    /* Hyperlapse ------------------------------------- */
 
     var pano = document.getElementById('pano');
     var is_moving = false;
     var px, py;
     var onPointerDownPointerX=0, onPointerDownPointerY=0;
 
-    var hyperlapse = new Hyperlapse(pano, {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        zoom: 2,
-        distance_between_points: 5,
-        max_points: 100
-    });
+    var hyperlapse = new Hyperlapse(pano, 2);
+    hyperlapse.setSize(window.innerWidth, window.innerHeight);
 
     hyperlapse.onError = function(e) {
         show( "ERROR: "+ e.message );
@@ -87,7 +82,7 @@ function init() {
     hyperlapse.onLoadComplete = function(e) {
         show("Start: " + start_pin.getPosition().toString() +
             "<br>End: " + end_pin.getPosition().toString() +
-            "<br>Ready." );
+            "<br>Ready. H=show/hide" );
     };
 
     hyperlapse.onFrame = function(e) {
@@ -99,48 +94,35 @@ function init() {
 
     pano.addEventListener( 'mousedown', function(e){
         e.preventDefault();
-
         is_moving = true;
-
         onPointerDownPointerX = e.clientX;
         onPointerDownPointerY = e.clientY;
-
         px = hlp.position.x;
         py = hlp.position.y;
-
     }, false );
 
     pano.addEventListener( 'mousemove', function(e){
         e.preventDefault();
         var f = hlp.fov / 500;
-
         if ( is_moving ) {
             var dx = ( onPointerDownPointerX - e.clientX ) * f;
             var dy = ( e.clientY - onPointerDownPointerY ) * f;
             hlp.position.x = px + dx; // reversed dragging direction (thanks @mrdoob!)
             hlp.position.y = py + dy;
         }
-
     }, false );
 
     pano.addEventListener( 'mouseup', function(){
         is_moving = false;
-
         hlp.position.x = px;
         //hlp.position.y = py;
     }, false );
 
-    /* Dat GUI */
+    /* Controls --------------------------------------- */
 
     var gui = new dat.GUI();
 
     var o = {
-
-        offset_x:0,
-        offset_y:0,
-        offset_z:0,
-        screen_width: window.innerWidth,
-        screen_height: window.innerHeight,
         generate:function(){
             show( "Generating route..." );
 
@@ -169,59 +151,45 @@ function init() {
     };
 
     var scn = gui.addFolder('Screen size');
-    scn.add(o, 'screen_width',  window.innerHeight).listen();
-    scn.add(o, 'screen_height', window.innerHeight).listen();
+    scn.add(hlp, 'scrn_width',  window.innerWidth).listen().name("Screen Width");
+    scn.add(hlp, 'scrn_height', window.innerHeight).listen().name("Screen Height");
 
     var rp = gui.addFolder('Run-time Parameters');
-    rp.add(hlp, 'fov', 1, 180).step(1).name("FOV / Deg ").onChange(hyperlapse.setFOV);
-    rp.add(hlp, 'millis', 10, 300).step(1).name("Speed / ms");
+    rp.add(hlp, 'fov', 1, 180).step(1).listen().name("FOV / Deg ").onChange(hyperlapse.setFOV);
+    rp.add(hlp, 'millis', 10, 300).step(1).listen().name("Speed / ms");
+    rp.add(hlp.offset, 'x', -360, 360).listen().name("Offset:X / Deg");
+    rp.add(hlp.offset, 'y', -180, 180).listen().name("Offset:Y / Deg");
+    rp.add(hlp.offset, 'z', -360, 360).listen().name("Tilt / Deg");
     rp.add(hlp.position, 'x', -360, 360).listen().name("Position:X");
     rp.add(hlp.position, 'y', -180, 180).listen().name("Position:Y");
-
+    rp.add(hlp, 'rpReset').name("Reset");
     rp.open();
 
     var gp = gui.addFolder('Gen-time Parameters');
-    gp.add(hlp, 'distance_between_points', 5, 100).name("Dist btwn pts / m")
-    gp.add(hlp, 'max_points', 10, 500).name("Max points");
-
-    var offset_x_control = gp.add(o, 'offset_x', -360, 360);
-    offset_x_control.onChange(function(value) {
-        hyperlapse.offset.x = value;
-    });
-
-    var offset_y_control = gp.add(o, 'offset_y', -180, 180);
-    offset_y_control.onChange(function(value) {
-        hyperlapse.offset.y = value;
-    });
-
-    var offset_z_control = gp.add(o, 'offset_z', -360, 360);
-    offset_z_control.onChange(function(value) {
-        hyperlapse.offset.z = value;
-    });
-
-    gp.add(o, 'generate');
-    gp.add(hyperlapse, 'load');
-
+    gp.add(hlp, 'distance_between_points', 5, 100).listen().name("Dist btwn pts / m")
+    gp.add(hlp, 'max_points', 10, 500).listen().name("Max points");
+    gp.add(hlp, 'gpReset').name("Reset");
+    gp.add(o, 'generate').name("Generate Hyperlapse");
+    gp.add(hyperlapse, 'load').name("(Re)Load Panoramas");
     gp.open();
 
     var play_controls = gui.addFolder('Player Controls');
-    play_controls.add(hyperlapse, 'play');
-    play_controls.add(hyperlapse, 'pause');
-    play_controls.add(hyperlapse, 'next');
-    play_controls.add(hyperlapse, 'prev');
+    play_controls.add(hyperlapse, 'play').name("Play");
+    play_controls.add(hyperlapse, 'pause').name("Pause");
+    play_controls.add(hyperlapse, 'next').name("Next frame (>)");
+    play_controls.add(hyperlapse, 'prev').name("Previous frame (<)");
     play_controls.open();
 
     window.addEventListener('resize', function(){
         hyperlapse.setSize(window.innerWidth, window.innerHeight);
-        o.screen_width = window.innerWidth;
-        o.screen_height = window.innerHeight;
     }, false);
 
     var show_ui = true;
+
     document.addEventListener( 'keydown', onKeyDown, false );
     function onKeyDown ( event ) {
-
         switch( event.keyCode ) {
+
             case 72: /* H */
                 show_ui = !show_ui;
                 document.getElementById("controls").style.opacity = (show_ui)?1:0;
@@ -235,7 +203,6 @@ function init() {
                 hyperlapse.prev();
                 break;
         }
-
     };
 
     o.generate();

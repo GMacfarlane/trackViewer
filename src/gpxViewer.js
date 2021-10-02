@@ -69,7 +69,7 @@ var HyperlapsePoint = function(location, pano_id, params ) {
 	 * @default 0
 	 * @type {Number}
 	 */
-	this.pitch = params.pitch || 0;
+	this.pitch = params.pitch || 0; // todo does his do anything?
 
 	/**
 	 * @type {Image}
@@ -92,19 +92,33 @@ var HyperlapsePoint = function(location, pano_id, params ) {
 /*
  * Collection of hyperlapse parameters with default values
  *
- * broken-out of the class since there will only be one Hyperlapse object anyway,
+ * Broken-out of the class since there will only be one Hyperlapse object anyway,
  * and this simplifies the duplication of settings and values for the viewer UI.
  */
 var hlp = {
-  // run-time parameters
-  fov: 120,                     // Field of view / Deg
-  millis: 200,                  // Speed / ms
-  position: {x:0, y:0},         // Camera position / Deg
-  // generation-time parameters
-  distance_between_points:20,   // Distance between hyperlapse points / m
-  max_points:50                 // Max no of hyperlapse points
-};
+    // run-time parameters
+    fov: 0, millis: 0, offset: {x:0, y:0, z:0}, position: {x:0, y:0},
+    rpReset: function () {
+        hlp.fov = 120;                     // Field of view / Deg
+        hlp.millis = 200;                  // Speed / ms
+        hlp.offset.x = 0;                   // View offset (z=Tilt) / Deg
+        hlp.offset.y = 0;
+        hlp.offset.z = 0;
+        hlp.position.x = 0;                 // Camera position / Deg
+        hlp.position.y = 0;
+    },
 
+    // generation-time parameters
+    distance_between_points:0, max_points:0,
+    gpReset: function () {
+        hlp.distance_between_points = 20;   // Distance between hyperlapse points / metres
+        hlp.max_points = 50;                // Max no of hyperlapse points
+    },
+
+    // other ( see Hyperlapse.setSize() )
+    scrn_width: 800, scrn_height: 400
+}
+hlp.rpReset(); hlp.gpReset();
 /**
  * @class
  * @constructor
@@ -114,18 +128,15 @@ var hlp = {
  * @param {Number} [params.height=400]
  * @param {Number} [params.zoom=1]
  */
-var Hyperlapse = function(container, params) {
+var Hyperlapse = function(container, zoom) {
 
 	"use strict";
 
-	var self = this, // todo refac how all these defaults are applied. Put them in an object we can use in the viewer too.
+	var self = this, 
 		_listeners = [],
 		_container = container,
-		_params = params || {}, // todo deleteme
-		_w = _params.width || 800,
-		_h = _params.height || 400,
 		_d = 20,
-		_zoom = _params.zoom || 1,
+		_zoom = zoom || 1,
 		_lat = 0, _lon = 0,
 		_is_playing = false, _is_loading = false,
 		_point_index = 0,
@@ -169,7 +180,7 @@ var Hyperlapse = function(container, params) {
 	_canvas = document.createElement( 'canvas' );
 	_context = _canvas.getContext( '2d' );
 
-	_camera = new THREE.PerspectiveCamera( hlp.fov, _w/_h, 1, 1100 );
+	_camera = new THREE.PerspectiveCamera( hlp.fov, hlp.scrn_width/hlp.scrn_height, 1, 1100 );
 	_camera.target = new THREE.Vector3( 0, 0, 0 );
 
 	_scene = new THREE.Scene();
@@ -187,7 +198,7 @@ var Hyperlapse = function(container, params) {
     };
     _renderer = isWebGLAvailable() ? new THREE.WebGLRenderer() : new THREE.CanvasRenderer();
 	_renderer.autoClearColor = false;
-	_renderer.setSize( _w, _h );
+	_renderer.setSize( hlp.scrn_width, hlp.scrn_height );
 
 	_mesh = new THREE.Mesh(
 		new THREE.SphereGeometry( 500, 60, 40 ),
@@ -379,9 +390,9 @@ var Hyperlapse = function(container, params) {
 		if(!_is_loading && self.length()>0) {
 			var t = _point_index/(self.length());
 
-			var o_x = hlp.position.x + (self.offset.x * t);
-			var o_y = hlp.position.y + (self.offset.y * t);
-			var o_z = (self.offset.z.toRad() * t);
+			var o_x = hlp.position.x + (hlp.offset.x * t);
+			var o_y = hlp.position.y + (hlp.offset.y * t);
+			var o_z = (hlp.offset.z.toRad() * t);
 
 			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
 			var o_pitch = hlp.position.y + o_y;
@@ -436,12 +447,6 @@ var Hyperlapse = function(container, params) {
 	};
 
 	/**
-	 * @default {x:0, y:0, z:0}
-	 * @type {Object}
-	 */
-	this.offset = {x:0, y:0, z:0};
-
-	/**
 	 * @returns {boolean}
 	 */
 	this.isPlaying = function() { return _is_playing; };
@@ -480,7 +485,7 @@ var Hyperlapse = function(container, params) {
 	 */
 	this.setFOV = function(v) {
 		hlp.fov = Math.floor(v);
-		_camera.projectionMatrix.makePerspective( hlp.fov, _w/_h, 1, 1100 );
+		_camera.projectionMatrix.makePerspective( hlp.fov, hlp.scrn_width/hlp.scrn_height, 1, 1100 );
 	};
 
 	/**
@@ -488,10 +493,10 @@ var Hyperlapse = function(container, params) {
 	 * @param {Number} height
 	 */
 	this.setSize = function(width, height) {
-		_w = width;
-		_h = height;
-		_renderer.setSize( _w, _h );
-		_camera.projectionMatrix.makePerspective( hlp.fov, _w/_h, 1, 1100 );
+		hlp.scrn_width = width;
+		hlp.scrn_height = height;
+		_renderer.setSize( hlp.scrn_width, hlp.scrn_height );
+		_camera.projectionMatrix.makePerspective( hlp.fov, hlp.scrn_width/hlp.scrn_height, 1, 1100 );
 	};
 
 	/**
@@ -503,10 +508,6 @@ var Hyperlapse = function(container, params) {
 
 		_lat = 0;
 		_lon = 0;
-
-		self.offset.x = 0;
-		self.offset.y = 0;
-		self.offset.z = 0;
 
 		_point_index = 0;
 		_origin_heading = 0;
