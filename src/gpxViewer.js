@@ -69,7 +69,7 @@ var HyperlapsePoint = function(location, pano_id, params ) {
 	 * @default 0
 	 * @type {Number}
 	 */
-	this.pitch = params.pitch || 0; // todo does his do anything?
+	this.pitch = params.pitch || 0; // todo does this do anything?
 
 	/**
 	 * @type {Image}
@@ -99,13 +99,10 @@ var hlp = {
     // run-time parameters
     fov: 0, millis: 0, offset: {x:0, y:0, z:0}, position: {x:0, y:0},
     rpReset: function () {
-        hlp.fov = 120;                     // Field of view / Deg
-        hlp.millis = 200;                  // Speed / ms
-        hlp.offset.x = 0;                   // View offset (z=Tilt) / Deg
-        hlp.offset.y = 0;
-        hlp.offset.z = 0;
-        hlp.position.x = 0;                 // Camera position / Deg
-        hlp.position.y = 0;
+        hlp.fov = 120;                                          // Field of view / Deg
+        hlp.millis = 200;                                       // Speed / ms
+        hlp.offset.x = 0; hlp.offset.y = 0; hlp.offset.z = 0;   // View offset (z=Tilt) / Deg
+        hlp.position.x = 0; hlp.position.y = 0;                 // Camera position / Deg
     },
 
     // generation-time parameters
@@ -394,7 +391,8 @@ var Hyperlapse = function(container, zoom) {
 			var o_y = hlp.position.y + (hlp.offset.y * t);
 			var o_z = (hlp.offset.z.toRad() * t);
 
-			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
+//			var o_heading = (self.use_lookat) ? _lookat_heading - _origin_heading.toDeg() + o_x : o_x;
+			var o_heading = (_forward) ? o_x : o_x - 180;
 			var o_pitch = hlp.position.y + o_y;
 
 			var olon = _lon, olat = _lat;

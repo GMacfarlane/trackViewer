@@ -114,8 +114,8 @@ function init() {
 
     pano.addEventListener( 'mouseup', function(){
         is_moving = false;
-        hlp.position.x = px;
-        //hlp.position.y = py;
+        //hlp.position.x = px; // un-comment to revert position on mouse-up
+        //hlp.position.y = py; // un-comment to revert position on mouse-up
     }, false );
 
     /* Controls --------------------------------------- */
