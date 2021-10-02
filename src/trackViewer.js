@@ -3,7 +3,6 @@ var end_point   = new google.maps.LatLng(51.29360,-0.60011);
 
 var map, directions_renderer, directions_service, streetview_service;
 var start_pin, end_pin, camera_pin;
-var _elevation = 0;
 var _route_markers = [];
 
 function show(msg) {
@@ -60,8 +59,7 @@ function init() {
         height: window.innerHeight,
         zoom: 2,
         distance_between_points: 5,
-        max_points: 100,
-        elevation: _elevation
+        max_points: 100
     });
 
     hyperlapse.onError = function(e) {
@@ -145,7 +143,6 @@ function init() {
         distance_between_points:10,
         max_points:100,
         fov: 120,
-        elevation:Math.floor(_elevation),
         tilt:0,
         millis:100,
         offset_x:0,
@@ -202,13 +199,6 @@ function init() {
     var fov_control = parameters.add(o, 'fov', 1, 180);
     fov_control.onChange(function(value) {
         hyperlapse.setFOV(value);
-    });
-
-    var pitch_control = parameters.add(o, 'elevation', -1000, 1000);
-    pitch_control.onChange(function(value) {
-        _elevation = value;
-        hyperlapse.elevation_offset = value;
-        changeHash();
     });
 
     var millis_control = parameters.add(o, 'millis', 10, 300);
