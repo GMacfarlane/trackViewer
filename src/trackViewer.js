@@ -13,14 +13,6 @@ function init() {
 
     /* Map */
 
-    function snapToRoad(point, callback) {
-        var request = { origin: point, destination: point, travelMode: google.maps.TravelMode["DRIVING"] };
-        directions_service.route(request, function(response, status) {
-            if(status=="OK") callback(response.routes[0].overview_path[0]);
-            else callback(null);
-        });
-    }
-
     var mapOpt = {
         mapTypeId: google.maps.MapTypeId.ROADMAP,
         center: start_point,
@@ -45,30 +37,14 @@ function init() {
 
     start_pin = new google.maps.Marker({
         position: start_point,
-        draggable: true,
+        label: 'A',
         map: map
     });
 
-    google.maps.event.addListener (start_pin, 'dragend', function (event) {
-        snapToRoad(start_pin.getPosition(), function(result) {
-            start_pin.setPosition(result);
-            start_point = result;
-            changeHash();
-        });
-    });
-
-    end_pin = new google.maps.Marker({
+   end_pin = new google.maps.Marker({
         position: end_point,
-        draggable: true,
+        label: 'B',
         map: map
-    });
-
-    google.maps.event.addListener (end_pin, 'dragend', function (event) {
-        snapToRoad(end_pin.getPosition(), function(result) {
-            end_pin.setPosition(result);
-            end_point = result;
-            changeHash();
-        });
     });
 
     /* Hyperlapse */
