@@ -1,799 +1,345 @@
-/**
- * @overview Hyperapse.js - JavaScript hyper-lapse utility for Google Street View.
- * @author Peter Nitsch
- * @copyright Teehan+Lax 2013
- */
 
-Number.prototype.toRad = function() {
-	return this * Math.PI / 180;
-};
+var start_point = new google.maps.LatLng(44.3431,6.783936);
+var end_point = new google.maps.LatLng(44.340578,6.782684);
+var map, directions_renderer, directions_service, streetview_service, geocoder;
+var start_pin, end_pin, camera_pin;
+var _elevation = 0;
+var _route_markers = [];
 
-Number.prototype.toDeg = function() {
-	return this * 180 / Math.PI;
-};
+function show(msg) {
+    document.getElementById("text").innerHTML = msg;
+}
 
-// Array Remove - By John Resig (MIT Licensed)
-Array.prototype.remove = function(from, to) {
-  var rest = this.slice((to || from) + 1 || this.length);
-  this.length = from < 0 ? this.length + from : from;
-  return this.push.apply(this, rest);
-};
+function init() {
 
-var pointOnLine = function(t, a, b) {
-	var lat1 = a.lat().toRad(), lon1 = a.lng().toRad();
-	var lat2 = b.lat().toRad(), lon2 = b.lng().toRad();
+    /* Map */
 
-	x = lat1 + t * (lat2 - lat1);
-	y = lon1 + t * (lon2 - lon1);
-
-	return new google.maps.LatLng(x.toDeg(), y.toDeg());
-};
-
-/**
- * @class
- * @classdesc Value object for a single point in a Hyperlapse sequence.
- * @constructor
- * @param {google.maps.LatLng} location
- * @param {String} pano_id
- * @param {Object} params
- * @param {Number} [params.heading=0]
- * @param {Number} [params.pitch=0]
- * @param {Number} [params.elevation=0]
- * @param {Image} [params.image=null]
- * @param {String} [params.copyright="© 2013 Google"]
- * @param {String} [params.image_date=""]
- */
-var HyperlapsePoint = function(location, pano_id, params ) {
-
-	var self = this;
-	var params = params || {};
-
-	/**
-	 * @type {google.maps.LatLng}
-	 */
-	this.location = location;
-
-	/**
-	 * @type {Number}
-	 */
-	this.pano_id = pano_id;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.heading = params.heading || 0;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.pitch = params.pitch || 0;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.elevation = params.elevation || 0;
-
-	/**
-	 * @type {Image}
-	 */
-	this.image = params.image || null;
-
-	/**
-	 * @default "© 2013 Google"
-	 * @type {String}
-	 */
-	this.copyright = params.copyright || "© 2013 Google";
-
-	/**
-	 * @type {String}
-	 */
-	this.image_date = params.image_date || "";
-
-};
-
-/**
- * @class
- * @constructor
- * @param {Node} container - HTML element
- * @param {Object} params
- * @param {Number} [params.width=800]
- * @param {Number} [params.height=400]
- * @param {boolean} [params.use_elevation=false]
- * @param {Number} [params.distance_between_points=5]
- * @param {Number} [params.max_points=100]
- * @param {Number} [params.fov=70]
- * @param {Number} [params.zoom=1]
- * @param {google.maps.LatLng} [params.lookat=null]
- * @param {Number} [params.millis=50]
- * @param {Number} [params.elevation=0]
- * @param {Number} [params.tilt=0]
- */
-var Hyperlapse = function(container, params) {
-
-	"use strict";
-
-	var self = this,
-		_listeners = [],
-		_container = container,
-		_params = params || {},
-		_w = _params.width || 800,
-		_h = _params.height || 400,
-		_d = 20,
-		_use_elevation = _params.use_elevation || false,
-		_distance_between_points = _params.distance_between_points || 5,
-		_max_points = _params.max_points || 100,
-		_fov = _params.fov || 70,
-		_zoom = _params.zoom || 1,
-		_lat = 0, _lon = 0,
-		_position_x = 0, _position_y = 0,
-		_is_playing = false, _is_loading = false,
-		_point_index = 0,
-		_origin_heading = 0, _origin_pitch = 0,
-		_forward = true,
-		_lookat_heading = 0, _lookat_elevation = 0,
-		_canvas, _context,
-		_camera, _scene, _renderer, _mesh,
-		_loader, _cancel_load = false,
-		_ctime = Date.now(),
-		_ptime = 0, _dtime = 0,
-		_prev_pano_id = null,
-		_raw_points = [], _h_points = [];
-
-	/**
-	 * @event Hyperlapse#onError
- 	 * @param {Object} e
- 	 * @param {String} e.message
-	 */
-	var handleError = function (e) { if (self.onError) self.onError(e); };
-
-	/**
-	 * @event Hyperlapse#onFrame
-	 * @param {Object} e
- 	 * @param {Number} e.position
- 	 * @param {HyperlapsePoint} e.point
-	 */
-	var handleFrame = function (e) { if (self.onFrame) self.onFrame(e); };
-
-	/**
-	 * @event Hyperlapse#onPlay
-	 */
-	var handlePlay = function (e) { if (self.onPlay) self.onPlay(e); };
-
-	/**
-	 * @event Hyperlapse#onPause
-	 */
-	var handlePause = function (e) { if (self.onPause) self.onPause(e); };
-
-	var _elevator = new google.maps.ElevationService();
-	var _streetview_service = new google.maps.StreetViewService();
-
-	_canvas = document.createElement( 'canvas' );
-	_context = _canvas.getContext( '2d' );
-
-	_camera = new THREE.PerspectiveCamera( _fov, _w/_h, 1, 1100 );
-	_camera.target = new THREE.Vector3( 0, 0, 0 );
-
-	_scene = new THREE.Scene();
-	_scene.add( _camera );
-
-  // Check if we can use webGL
-  var isWebGL = function () {
-    try {
-      return !! window.WebGLRenderingContext
-              && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' );
-    } catch(e) {
-      console.log('WebGL not available starting with CanvasRenderer');
-      return false;
+    function snapToRoad(point, callback) {
+        var request = { origin: point, destination: point, travelMode: google.maps.TravelMode["DRIVING"] };
+        directions_service.route(request, function(response, status) {
+            if(status=="OK") callback(response.routes[0].overview_path[0]);
+            else callback(null);
+        });
     }
-  };
-
-  _renderer = isWebGL() ? new THREE.WebGLRenderer() : new THREE.CanvasRenderer();
-	_renderer.autoClearColor = false;
-	_renderer.setSize( _w, _h );
-
-	_mesh = new THREE.Mesh(
-		new THREE.SphereGeometry( 500, 60, 40 ),
-		new THREE.MeshBasicMaterial( { map: new THREE.Texture(), side: THREE.DoubleSide, overdraw: true } )
-	);
-	_scene.add( _mesh );
-
-	_container.appendChild( _renderer.domElement );
-
-	_loader = new GSVPANO.PanoLoader( {zoom: _zoom} );
-	_loader.onError = function(message) {
-		handleError({message:message});
-	};
-
-	_loader.onPanoramaLoad = function() {
-		var canvas = document.createElement("canvas");
-		var context = canvas.getContext('2d');
-		canvas.setAttribute('width',this.canvas.width);
-		canvas.setAttribute('height',this.canvas.height);
-		context.drawImage(this.canvas, 0, 0);
-
-		_h_points[_point_index].image = canvas;
-
-		if(++_point_index != _h_points.length) {
-			handleLoadProgress( {position:_point_index} );
-
-			if(!_cancel_load) {
-				_loader.composePanorama( _h_points[_point_index].pano_id );
-			} else {
-				handleLoadCanceled( {} );
-			}
-		} else {
-			handleLoadComplete( {} );
-		}
-	};
-
-	/**
-	 * @event Hyperlapse#onLoadCanceled
-	 */
-	var handleLoadCanceled = function (e) {
-		_cancel_load = false;
-		_is_loading = false;
-
-		if (self.onLoadCanceled) self.onLoadCanceled(e);
-	};
-
-	/**
-	 * @event Hyperlapse#onLoadProgress
-	 * @param {Object} e
- 	 * @param {Number} e.position
-	 */
-	var handleLoadProgress = function (e) { if (self.onLoadProgress) self.onLoadProgress(e); };
-
-	/**
-	 * @event Hyperlapse#onLoadComplete
-	 */
-	var handleLoadComplete = function (e) {
-		_is_loading = false;
-		_point_index = 0;
-
-		animate();
-
-		if (self.onLoadComplete) self.onLoadComplete(e);
-	};
-
-	/**
-	 * @event Hyperlapse#onRouteProgress
-	 * @param {Object} e
- 	 * @param {HyperlapsePoint} e.point
-	 */
-	var handleRouteProgress = function (e) { if (self.onRouteProgress) self.onRouteProgress(e); };
-
-	/**
-	 * @event Hyperlapse#onRouteComplete
-	 * @param {Object} e
-	 * @param {google.maps.DirectionsResult} e.response
- 	 * @param {Array<HyperlapsePoint>} e.points
-	 */
-	var handleRouteComplete = function (e) {
-		var elevations = [];
-		for(var i=0; i<_h_points.length; i++) {
-			elevations[i] = _h_points[i].location;
-		}
-
-		if(_use_elevation) {
-			getElevation(elevations, function(results){
-				if(results) {
-					for(i=0; i<_h_points.length; i++) {
-						_h_points[i].elevation = results[i].elevation;
-					}
-				} else {
-					for(i=0; i<_h_points.length; i++) {
-						_h_points[i].elevation = -1;
-					}
-				}
-
-				self.setLookat(self.lookat, true, function(){
-					if (self.onRouteComplete) self.onRouteComplete(e);
-				});
-			});
-		} else {
-			for(i=0; i<_h_points.length; i++) {
-				_h_points[i].elevation = -1;
-			}
-
-			self.setLookat(self.lookat, false, function(){
-				if (self.onRouteComplete) self.onRouteComplete(e);
-			});
-		}
-
-
-	};
-
-	var parsePoints = function(response) {
-
-		_loader.load( _raw_points[_point_index], function() {
-
-			if(_loader.id != _prev_pano_id) {
-				_prev_pano_id = _loader.id;
-
-				var hp = new HyperlapsePoint( _loader.location, _loader.id, {
-					heading:_loader.rotation,
-					pitch: _loader.pitch,
-					elevation: _loader.elevation,
-					copyright: _loader.copyright,
-					image_date: _loader.image_date
-				} );
-
-				_h_points.push( hp );
-
-				handleRouteProgress( {point: hp} );
-
-				if(_point_index == _raw_points.length-1) {
-					handleRouteComplete( {response: response, points: _h_points} );
-				} else {
-					_point_index++;
-					if(!_cancel_load) parsePoints(response);
-					else handleLoadCanceled( {} );
-				}
-			} else {
-
-				_raw_points.splice(_point_index, 1);
-
-				if(_point_index == _raw_points.length) {
-					handleRouteComplete( {response: response, points: _h_points} ); // FIX
-				} else {
-					if(!_cancel_load) parsePoints(response);
-					else handleLoadCanceled( {} );
-				}
-
-			}
-
-		} );
-	};
-
-	var getElevation = function(locations, callback) {
-		var positionalRequest = { locations: locations };
-
-		_elevator.getElevationForLocations(positionalRequest, function(results, status) {
-			if (status == google.maps.ElevationStatus.OK) {
-				callback(results);
-			} else {
-				if(status == google.maps.ElevationStatus.OVER_QUERY_LIMIT) {
-					console.log("Over elevation query limit.");
-				}
-				_use_elevation = false;
-				callback(null);
-			}
-		});
-	};
-
-	var handleDirectionsRoute = function(response) {
-		if(!_is_playing) {
-
-			var route = response.routes[0];
-			var path = route.overview_path;
-			var legs = route.legs;
-
-			var total_distance = 0;
-			for(var i=0; i<legs.length; ++i) {
-				total_distance += legs[i].distance.value;
-			}
-
-			var segment_length = total_distance/_max_points;
-			_d = (segment_length < _distance_between_points) ? _d = _distance_between_points : _d = segment_length;
-
-			var d = 0;
-			var r = 0;
-			var a, b;
-
-			for(i=0; i<path.length; i++) {
-				if(i+1 < path.length) {
-
-					a = path[i];
-					b = path[i+1];
-					d = google.maps.geometry.spherical.computeDistanceBetween(a, b);
-
-					if(r > 0 && r < d) {
-						a = pointOnLine(r/d, a, b);
-						d = google.maps.geometry.spherical.computeDistanceBetween(a, b);
-						_raw_points.push(a);
-
-						r = 0;
-					} else if(r > 0 && r > d) {
-						r -= d;
-					}
-
-					if(r === 0) {
-						var segs = Math.floor(d/_d);
-
-						if(segs > 0) {
-							for(var j=0; j<segs; j++) {
-								var t = j/segs;
-
-								if( t>0 || (t+i)===0  ) { // not start point
-									var way = pointOnLine(t, a, b);
-									_raw_points.push(way);
-								}
-							}
-
-							r = d-(_d*segs);
-						} else {
-							r = _d*( 1-(d/_d) );
-						}
-					}
-
-				} else {
-					_raw_points.push(path[i]);
-				}
-			}
-
-			parsePoints(response);
-
-		} else {
-			self.pause();
-			handleDirectionsRoute(response);
-		}
-	};
-
-	var drawMaterial = function() {
-		_mesh.material.map.image = _h_points[_point_index].image;
-		_mesh.material.map.needsUpdate = true;
-
-		_origin_heading = _h_points[_point_index].heading;
-		_origin_pitch = _h_points[_point_index].pitch;
-
-		/*
-		if(self.use_lookat)
-			_lookat_heading = google.maps.geometry.spherical.computeHeading( _h_points[_point_index].location, self.lookat );
-
-		if(_h_points[_point_index].elevation != -1 ) {
-			var e = _h_points[_point_index].elevation - self.elevation_offset;
-			var d = google.maps.geometry.spherical.computeDistanceBetween( _h_points[_point_index].location, self.lookat );
-			var dif = _lookat_elevation - e;
-			var angle = Math.atan( Math.abs(dif)/d ).toDeg();
-			_position_y = (dif<0) ? -angle : angle;
-		}
-		*/
-
-		handleFrame({
-			position:_point_index,
-			point: _h_points[_point_index]
-		});
-	};
-
-	var render = function() {
-		if(!_is_loading && self.length()>0) {
-			var t = _point_index/(self.length());
-
-			var o_x = self.position.x + (self.offset.x * t);
-			var o_y = self.position.y + (self.offset.y * t);
-			var o_z = self.tilt + (self.offset.z.toRad() * t);
-
-			/*
-			var o_heading = (self.use_lookat) ? _lookat_heading - _origin_heading.toDeg() + o_x : o_x;
-			if (!_forward) o_heading = o_heading -180;
-			*/
-			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
-			var o_pitch = _position_y + o_y;
-
-			var olon = _lon, olat = _lat;
-			_lon = _lon + ( o_heading - olon );
-			_lat = _lat + ( o_pitch - olat );
-
-			_lat = Math.max( - 85, Math.min( 85, _lat ) );
-			var phi = ( 90 - _lat ).toRad();
-			var theta = _lon.toRad();
-
-			_camera.target.x = 500 * Math.sin( phi ) * Math.cos( theta );
-			_camera.target.y = 500 * Math.cos( phi );
-			_camera.target.z = 500 * Math.sin( phi ) * Math.sin( theta );
-			_camera.lookAt( _camera.target );
-			_camera.rotation.z -= o_z;
-
-			if(self.use_rotation_comp) {
-				_camera.rotation.z -= self.rotation_comp.toRad();
-			}
-			_mesh.rotation.z = _origin_pitch.toRad();
-			_renderer.render( _scene, _camera );
-		}
-	};
-
-	var animate = function() {
-		var ptime = _ctime;
-		_ctime = Date.now();
-		_dtime += _ctime - ptime;
-		if(_dtime >= self.millis) {
-			if(_is_playing) loop();
-			_dtime = 0;
-		}
-
-		requestAnimationFrame( animate );
-		render();
-	};
-
-	// animates the playhead forward or backward depending on direction
-	var loop = function() {
-		drawMaterial();
-
-		if(_forward) {
-			if(++_point_index == _h_points.length) {
-				_point_index = _h_points.length-1;
-				_forward = !_forward;
-			}
-		} else {
-			if(--_point_index == -1) {
-				_point_index = 0;
-				_forward = !_forward;
-			}
-		}
-	};
-
-
-	/**
-	 * @type {google.maps.LatLng}
-	 */
-	this.lookat = _params.lookat || null;
-
-	/**
-	 * @default 50
-	 * @type {Number}
-	 */
-	this.millis = _params.millis || 50;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.elevation_offset = _params.elevation || 0;
-
-	/**
-	 * @deprecated should use offset instead
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.tilt = _params.tilt || 0;
-
-	/**
-	 * @default {x:0, y:0}
-	 * @type {Object}
-	 */
-	this.position = {x:0, y:0};
-
-	/**
-	 * @default {x:0, y:0, z:0}
-	 * @type {Object}
-	 */
-	this.offset = {x:0, y:0, z:0};
-
-	/**
-	 * @default false
-	 * @type {boolean}
-	 */
-	this.use_lookat = _params.use_lookat || false;
-
-	/**
-	 * @default false
-	 * @type {boolean}
-	 */
-	this.use_rotation_comp = false;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.rotation_comp = 0;
-
-	/**
-	 * @returns {boolean}
-	 */
-	this.isPlaying = function() { return _is_playing; };
-
-	/**
-	 * @returns {boolean}
-	 */
-	this.isLoading = function() { return _is_loading; };
-
-	/**
-	 * @returns {Number}
-	 */
-	this.length = function() { return _h_points.length; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setPitch = function(v) { _position_y = v; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setDistanceBetweenPoint = function(v) { _distance_between_points = v; };
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setMaxPoints = function(v) { _max_points = v; };
-
-	/**
-	 * @returns {Number}
-	 */
-	this.fov = function() { return _fov; };
-
-	/**
-	 * @returns {THREE.WebGLRenderer}
-	 */
-	this.webgl = function() { return _renderer; };
-
-	/**
-	 * @returns {Image}
-	 */
-	this.getCurrentImage = function() {
-		return _h_points[_point_index].image;
-	};
-
-	/**
-	 * @returns {HyperlapsePoint}
-	 */
-	this.getCurrentPoint = function() {
-		return _h_points[_point_index];
-	};
-
-	/**
-	 * @param {google.maps.LatLng} point
-	 * @param {boolean} call_service
-	 * @param {function} callback
-	 */
-	this.setLookat = function(point, call_service, callback) {
-		self.lookat = point;
-
-		if(_use_elevation && call_service) {
-			var e = getElevation([self.lookat], function(results){
-				if(results) {
-					_lookat_elevation = results[0].elevation;
-				}
-
-				if(callback && callback.apply) callback();
-			});
-		} else {
-			if(callback && callback.apply) callback();
-		}
-
-	};
-
-	/**
-	 * @param {Number} v
-	 */
-	this.setFOV = function(v) {
-		_fov = Math.floor(v);
-		_camera.projectionMatrix.makePerspective( _fov, _w/_h, 1, 1100 );
-	};
-
-	/**
-	 * @param {Number} width
-	 * @param {Number} height
-	 */
-	this.setSize = function(width, height) {
-		_w = width;
-		_h = height;
-		_renderer.setSize( _w, _h );
-		_camera.projectionMatrix.makePerspective( _fov, _w/_h, 1, 1100 );
-	};
-
-	/**
-	 * Resets all members to defaults
-	 */
-	this.reset = function() {
-		_raw_points.remove(0,-1);
-		_h_points.remove(0,-1);
-
-		self.tilt = 0;
-
-		_lat = 0;
-		_lon = 0;
-
-		self.position.x = 0;
-		self.offset.x = 0;
-		self.offset.y = 0;
-		self.offset.z = 0;
-		_position_x = 0;
-		_position_y = 0;
-
-		_point_index = 0;
-		_origin_heading = 0;
-		_origin_pitch = 0;
-
-		_forward = true;
-	};
-
-	/**
-	 * @param {Object} parameters
-	 * @param {Number} [parameters.distance_between_points]
-	 * @param {Number} [parameters.max_points]
-	 * @param {google.maps.DirectionsResult} parameters.route
-	 */
-	this.generate = function( params ) {
-
-		if(!_is_loading) {
-			_is_loading = true;
-			self.reset();
-
-			var p = params || {};
-			_distance_between_points = p.distance_between_points || _distance_between_points;
-			_max_points = p.max_points || _max_points;
-
-			if(p.route) {
-				handleDirectionsRoute(p.route);
-			} else {
-				console.log("No route provided.");
-			}
-
-		}
-
-	};
-
-	/**
-	 * @fires Hyperlapse#onLoadComplete
-	 */
-	this.load = function() {
-		_point_index = 0;
-		_loader.composePanorama(_h_points[_point_index].pano_id);
-	};
-
-	/**
-	 * @fires Hyperlapse#onLoadCanceled
-	 */
-	this.cancel = function() {
-		if(_is_loading) {
-			_cancel_load = true;
-		}
-	};
-
-	/**
-	 * @returns {google.maps.LatLng}
-	 */
-	this.getCameraPosition = function() {
-		return new google.maps.LatLng(_lat, _lon);
-	};
-
-	/**
-	 * Animate through all frames in sequence
-	 * @fires Hyperlapse#onPlay
-	 */
-	this.play = function() {
-		if(!_is_loading) {
-			_is_playing = true;
-			handlePlay({});
-		}
-	};
-
-	/**
-	 * Pause animation
-	 * @fires Hyperlapse#onPause
-	 */
-	this.pause = function() {
-		_is_playing = false;
-		handlePause({});
-	};
-
-	/**
-	 * Display next frame in sequence
-	 * @fires Hyperlapse#onFrame
-	 */
-	this.next = function() {
-		self.pause();
-
-		if(_point_index+1 != _h_points.length) {
-			_point_index++;
-			drawMaterial();
-		}
-	};
-
-	/**
-	 * Display previous frame in sequence
-	 * @fires Hyperlapse#onFrame
-	 */
-	this.prev = function() {
-		self.pause();
-
-		if(_point_index-1 !== 0) {
-			_point_index--;
-			drawMaterial();
-		}
-	};
-};
+
+    var mapOpt = {
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        center: start_point,
+        zoom: 15
+    };
+
+    map = new google.maps.Map(document.getElementById("map"), mapOpt);
+    geocoder = new google.maps.Geocoder();
+
+    var overlay = new google.maps.StreetViewCoverageLayer();
+    overlay.setMap(map);
+
+    directions_service = new google.maps.DirectionsService();
+    directions_renderer = new google.maps.DirectionsRenderer({draggable:false, markerOptions:{visible: false}});
+    directions_renderer.setMap(map);
+    directions_renderer.setOptions({preserveViewport:true});
+
+    camera_pin = new google.maps.Marker({
+        position: start_point,
+        map: map
+    });
+
+    start_pin = new google.maps.Marker({
+        position: start_point,
+        draggable: true,
+        map: map
+    });
+
+    google.maps.event.addListener (start_pin, 'dragend', function (event) {
+        snapToRoad(start_pin.getPosition(), function(result) {
+            start_pin.setPosition(result);
+            start_point = result;
+            changeHash();
+        });
+    });
+
+    end_pin = new google.maps.Marker({
+        position: end_point,
+        draggable: true,
+        map: map
+    });
+
+    google.maps.event.addListener (end_pin, 'dragend', function (event) {
+        snapToRoad(end_pin.getPosition(), function(result) {
+            end_pin.setPosition(result);
+            end_point = result;
+            changeHash();
+        });
+    });
+
+    /* Hyperlapse */
+
+    var pano = document.getElementById('pano');
+    var is_moving = false;
+    var px, py;
+    var onPointerDownPointerX=0, onPointerDownPointerY=0;
+
+    var hyperlapse = new Hyperlapse(pano, {
+        fov: 80,
+        millis: 50,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        zoom: 2,
+        distance_between_points: 5,
+        max_points: 100,
+        elevation: _elevation
+    });
+
+    hyperlapse.onError = function(e) {
+        show( "ERROR: "+ e.message );
+    };
+
+    hyperlapse.onRouteProgress = function(e) {
+        _route_markers.push( new google.maps.Marker({
+            position: e.point.location,
+            draggable: false,
+            icon: "../lib/dot_marker.png",
+            map: map
+            })
+        );
+    };
+
+    hyperlapse.onRouteComplete = function(e) {
+        directions_renderer.setDirections(e.response);
+        show( "Number of Points: "+ hyperlapse.length() );
+        hyperlapse.load();
+    };
+
+    hyperlapse.onLoadProgress = function(e) {
+        show( "Loading: "+ (e.position+1) +" of "+ hyperlapse.length() );
+    };
+
+    hyperlapse.onLoadComplete = function(e) {
+        show( "" +
+            "Start: " + start_pin.getPosition().toString() +
+            "<br>End: " + end_pin.getPosition().toString() +
+            "<br>Ready." );
+    };
+
+    hyperlapse.onFrame = function(e) {
+        show( "" +
+            "Start: " + start_pin.getPosition().toString() +
+            "<br>End: " + end_pin.getPosition().toString() +
+            "<br>Position: "+ (e.position+1) +" of "+ hyperlapse.length() );
+        camera_pin.setPosition(e.point.location);
+    };
+
+    pano.addEventListener( 'mousedown', function(e){
+        e.preventDefault();
+
+        is_moving = true;
+
+        onPointerDownPointerX = e.clientX;
+        onPointerDownPointerY = e.clientY;
+
+        px = hyperlapse.position.x;
+        py = hyperlapse.position.y;
+
+    }, false );
+
+    pano.addEventListener( 'mousemove', function(e){
+        e.preventDefault();
+        var f = hyperlapse.fov() / 500;
+
+        if ( is_moving ) {
+            var dx = ( onPointerDownPointerX - e.clientX ) * f;
+            var dy = ( e.clientY - onPointerDownPointerY ) * f;
+            hyperlapse.position.x = px + dx; // reversed dragging direction (thanks @mrdoob!)
+            hyperlapse.position.y = py + dy;
+
+            o.position_x = hyperlapse.position.x;
+            o.position_y = hyperlapse.position.y;
+        }
+
+    }, false );
+
+    pano.addEventListener( 'mouseup', function(){
+        is_moving = false;
+
+        hyperlapse.position.x = px;
+        //hyperlapse.position.y = py;
+    }, false );
+
+
+
+    /* Dat GUI */
+
+    var gui = new dat.GUI();
+
+    var o = {
+        distance_between_points:10,
+        max_points:100,
+        fov: 80,
+        elevation:Math.floor(_elevation),
+        tilt:0,
+        millis:50,
+        offset_x:0,
+        offset_y:0,
+        offset_z:0,
+        position_x:0,
+        position_y:0,
+        screen_width: window.innerWidth,
+        screen_height: window.innerHeight,
+        generate:function(){
+            show( "Generating route..." );
+
+            directions_renderer.setDirections({routes: []});
+
+            var marker;
+            while(_route_markers.length > 0) {
+                marker = _route_markers.pop();
+                marker.setMap(null);
+            }
+
+            request = {
+                origin: start_point,
+                destination: end_point,
+                travelMode: google.maps.DirectionsTravelMode.DRIVING
+            };
+
+            directions_service.route(request, function(response, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    hyperlapse.generate({route: response});
+                } else {
+                    console.log(status);
+                }
+            })
+        },
+        drop_pins:function(){
+            var bounds = map.getBounds();
+            var top_left = bounds.getNorthEast();
+            var bot_right = bounds.getSouthWest();
+            var hdif = Math.abs(top_left.lng() - bot_right.lng());
+            var spacing = hdif/4;
+
+            var center = map.getCenter();
+            var c1 = new google.maps.LatLng(center.lat(), center.lng()-spacing);
+            var c2 = new google.maps.LatLng(center.lat(), center.lng());
+            var c3 = new google.maps.LatLng(center.lat(), center.lng()+spacing);
+
+            snapToRoad(c1, function(result1) {
+                start_pin.setPosition(result1);
+                start_point = result1;
+
+                snapToRoad(c3, function(result3) {
+                    end_pin.setPosition(result3);
+                    end_point = result3;
+                    changeHash();
+                });
+            });
+        }
+    };
+
+
+    var scn = gui.addFolder('screen');
+    scn.add(o, 'screen_width', window.innerHeight).listen();
+    scn.add(o, 'screen_height', window.innerHeight).listen();
+
+    var parameters = gui.addFolder('parameters');
+
+    var distance_between_points_control = parameters.add(o, 'distance_between_points', 5, 100);
+    distance_between_points_control.onChange(function(value) {
+        hyperlapse.setDistanceBetweenPoint(value);
+    });
+
+    var max_points = parameters.add(o, 'max_points', 10, 300);
+    max_points.onChange(function(value) {
+        hyperlapse.setMaxPoints(value);
+    });
+
+    var fov_control = parameters.add(o, 'fov', 1, 180);
+    fov_control.onChange(function(value) {
+        hyperlapse.setFOV(value);
+    });
+
+    var pitch_control = parameters.add(o, 'elevation', -1000, 1000);
+    pitch_control.onChange(function(value) {
+        _elevation = value;
+        hyperlapse.elevation_offset = value;
+        changeHash();
+    });
+
+    var millis_control = parameters.add(o, 'millis', 10, 250);
+    millis_control.onChange(function(value) {
+        hyperlapse.millis = value;
+    });
+
+    var offset_x_control = parameters.add(o, 'offset_x', -360, 360);
+    offset_x_control.onChange(function(value) {
+        hyperlapse.offset.x = value;
+    });
+
+    var offset_y_control = parameters.add(o, 'offset_y', -180, 180);
+    offset_y_control.onChange(function(value) {
+        hyperlapse.offset.y = value;
+    });
+
+    var offset_z_control = parameters.add(o, 'offset_z', -360, 360);
+    offset_z_control.onChange(function(value) {
+        hyperlapse.offset.z = value;
+    });
+
+    var position_x_control = parameters.add(o, 'position_x', -360, 360).listen();
+    position_x_control.onChange(function(value) {
+        hyperlapse.position.x = value;
+    });
+
+    var position_y_control = parameters.add(o, 'position_y', -180, 180).listen();
+    position_y_control.onChange(function(value) {
+        hyperlapse.position.y = value;
+    });
+
+    var tilt_control = parameters.add(o, 'tilt', -Math.PI, Math.PI);
+    tilt_control.onChange(function(value) {
+        hyperlapse.tilt = value;
+    });
+
+    parameters.open();
+
+    var play_controls = gui.addFolder('play controls');
+    play_controls.add(hyperlapse, 'play');
+    play_controls.add(hyperlapse, 'pause');
+    play_controls.add(hyperlapse, 'next');
+    play_controls.add(hyperlapse, 'prev');
+    play_controls.open();
+
+    gui.add(o, 'drop_pins');
+    gui.add(o, 'generate');
+    gui.add(hyperlapse, 'load');
+
+    window.addEventListener('resize', function(){
+        hyperlapse.setSize(window.innerWidth, window.innerHeight);
+        o.screen_width = window.innerWidth;
+        o.screen_height = window.innerHeight;
+    }, false);
+
+    var show_ui = true;
+    document.addEventListener( 'keydown', onKeyDown, false );
+    function onKeyDown ( event ) {
+
+        switch( event.keyCode ) {
+            case 72: /* H */
+                show_ui = !show_ui;
+                document.getElementById("controls").style.opacity = (show_ui)?1:0;
+                break;
+
+            case 190: /* > */
+                hyperlapse.next();
+                break;
+
+            case 188: /* < */
+                hyperlapse.prev();
+                break;
+        }
+
+    };
+
+    o.generate();
+}
+
+window.onload = init;
