@@ -96,13 +96,13 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  * and this simplifies the duplication of settings and values for the viewer UI.
  */
 var hlp = {
-// runtime
-  fov: 120,     // Field of view / Deg
-  millis: 200,   // Speed / ms
-  position: {x:0, y:0}, // Camera position / Deg
-  //gen-time
-          distance_between_points:10, // Distance between hyperlapse points / m
-          max_points:50 // Max no of hyperlapse points
+  // run-time parameters
+  fov: 120,                     // Field of view / Deg
+  millis: 200,                  // Speed / ms
+  position: {x:0, y:0},         // Camera position / Deg
+  // generation-time parameters
+  distance_between_points:20,   // Distance between hyperlapse points / m
+  max_points:50                 // Max no of hyperlapse points
 };
 
 /**

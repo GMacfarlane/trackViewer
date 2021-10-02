@@ -169,7 +169,7 @@ function init() {
     };
 
     var scn = gui.addFolder('Screen size');
-    scn.add(o, 'screen_width', window.innerHeight).listen();
+    scn.add(o, 'screen_width',  window.innerHeight).listen();
     scn.add(o, 'screen_height', window.innerHeight).listen();
 
     var rp = gui.addFolder('Run-time Parameters');
