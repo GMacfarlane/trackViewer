@@ -107,7 +107,7 @@ var Hyperlapse = function(container, params) {
 
 	"use strict";
 
-	var self = this,
+	var self = this, // todo refac how all these defaults are applied. Put them in an object we can use in the viewer too.
 		_listeners = [],
 		_container = container,
 		_params = params || {},
@@ -168,18 +168,17 @@ var Hyperlapse = function(container, params) {
 	_scene = new THREE.Scene();
 	_scene.add( _camera );
 
-  // Check if we can use webGL
-  var isWebGL = function () {
-    try {
-      return !! window.WebGLRenderingContext
-              && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' );
-    } catch(e) {
-      console.log('WebGL not available starting with CanvasRenderer');
-      return false;
-    }
-  };
-
-  _renderer = isWebGL() ? new THREE.WebGLRenderer() : new THREE.CanvasRenderer();
+    // Check if we can use webGL
+    var isWebGLAvailable = function () {
+        try {
+            return !! window.WebGLRenderingContext && !! document.createElement( 'canvas' ).getContext( 'experimental-webgl' );
+        }
+        catch(e) {
+            console.log('WebGL not available starting with CanvasRenderer');
+            return false;
+        }
+    };
+    _renderer = isWebGLAvailable() ? new THREE.WebGLRenderer() : new THREE.CanvasRenderer();
 	_renderer.autoClearColor = false;
 	_renderer.setSize( _w, _h );
 
@@ -403,9 +402,6 @@ var Hyperlapse = function(container, params) {
 			_camera.lookAt( _camera.target );
 			_camera.rotation.z -= o_z;
 
-			if(self.use_rotation_comp) {
-				_camera.rotation.z -= self.rotation_comp.toRad();
-			}
 			_mesh.rotation.z = _origin_pitch.toRad();
 			_renderer.render( _scene, _camera );
 		}
@@ -441,7 +437,6 @@ var Hyperlapse = function(container, params) {
 		}
 	};
 
-
 	/**
 	 * @default 50
 	 * @type {Number}
@@ -466,18 +461,6 @@ var Hyperlapse = function(container, params) {
 	 * @type {Object}
 	 */
 	this.offset = {x:0, y:0, z:0};
-
-	/**
-	 * @default false
-	 * @type {boolean}
-	 */
-	this.use_rotation_comp = false;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.rotation_comp = 0;
 
 	/**
 	 * @returns {boolean}
