@@ -40,7 +40,6 @@ var pointOnLine = function(t, a, b) {
  * @param {Object} params
  * @param {Number} [params.heading=0]
  * @param {Number} [params.pitch=0]
- * @param {Number} [params.elevation=0]
  * @param {Image} [params.image=null]
  * @param {String} [params.copyright="© 2013 Google"]
  * @param {String} [params.image_date=""]
@@ -73,12 +72,6 @@ var HyperlapsePoint = function(location, pano_id, params ) {
 	this.pitch = params.pitch || 0;
 
 	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.elevation = params.elevation || 0;
-
-	/**
 	 * @type {Image}
 	 */
 	this.image = params.image || null;
@@ -103,13 +96,11 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  * @param {Object} params
  * @param {Number} [params.width=800]
  * @param {Number} [params.height=400]
- * @param {boolean} [params.use_elevation=false]
  * @param {Number} [params.distance_between_points=5]
  * @param {Number} [params.max_points=100]
  * @param {Number} [params.fov=70]
  * @param {Number} [params.zoom=1]
  * @param {Number} [params.millis=50]
- * @param {Number} [params.elevation=0]
  * @param {Number} [params.tilt=0]
  */
 var Hyperlapse = function(container, params) {
@@ -123,7 +114,6 @@ var Hyperlapse = function(container, params) {
 		_w = _params.width || 800,
 		_h = _params.height || 400,
 		_d = 20,
-		_use_elevation = _params.use_elevation || false,
 		_distance_between_points = _params.distance_between_points || 5,
 		_max_points = _params.max_points || 100,
 		_fov = _params.fov || 70,
@@ -167,7 +157,6 @@ var Hyperlapse = function(container, params) {
 	 */
 	var handlePause = function (e) { if (self.onPause) self.onPause(e); };
 
-	var _elevator = new google.maps.ElevationService();
 	var _streetview_service = new google.maps.StreetViewService();
 
 	_canvas = document.createElement( 'canvas' );
@@ -265,39 +254,6 @@ var Hyperlapse = function(container, params) {
 	 */
 	var handleRouteProgress = function (e) { if (self.onRouteProgress) self.onRouteProgress(e); };
 
-	/**
-	 * @event Hyperlapse#onRouteComplete
-	 * @param {Object} e
-	 * @param {google.maps.DirectionsResult} e.response
- 	 * @param {Array<HyperlapsePoint>} e.points
-	 */
-	var handleRouteComplete = function (e) {
-		var elevations = [];
-		for(var i=0; i<_h_points.length; i++) {
-			elevations[i] = _h_points[i].location;
-		}
-
-		if(_use_elevation) {
-			getElevation(elevations, function(results){
-				if(results) {
-					for(i=0; i<_h_points.length; i++) {
-						_h_points[i].elevation = results[i].elevation;
-					}
-				} else {
-					for(i=0; i<_h_points.length; i++) {
-						_h_points[i].elevation = -1;
-					}
-				}
-			});
-		} else {
-			for(i=0; i<_h_points.length; i++) {
-				_h_points[i].elevation = -1;
-			}
-		}
-
-        if (self.onRouteComplete) self.onRouteComplete(e);
-	};
-
 	var parsePoints = function(response) {
 
 		_loader.load( _raw_points[_point_index], function() {
@@ -308,7 +264,6 @@ var Hyperlapse = function(container, params) {
 				var hp = new HyperlapsePoint( _loader.location, _loader.id, {
 					heading:_loader.rotation,
 					pitch: _loader.pitch,
-					elevation: _loader.elevation,
 					copyright: _loader.copyright,
 					image_date: _loader.image_date
 				} );
@@ -317,8 +272,8 @@ var Hyperlapse = function(container, params) {
 
 				handleRouteProgress( {point: hp} );
 
-				if(_point_index == _raw_points.length-1) {
-					handleRouteComplete( {response: response, points: _h_points} );
+				if(_point_index == _raw_points.length-1) { // todo refac dup code
+					if (self.onRouteComplete) self.onRouteComplete({response: response, points: _h_points});
 				} else {
 					_point_index++;
 					if(!_cancel_load) parsePoints(response);
@@ -328,8 +283,8 @@ var Hyperlapse = function(container, params) {
 
 				_raw_points.splice(_point_index, 1);
 
-				if(_point_index == _raw_points.length) {
-					handleRouteComplete( {response: response, points: _h_points} ); // FIX
+				if(_point_index == _raw_points.length) { // todo refac dup code
+					if (self.onRouteComplete) self.onRouteComplete({response: response, points: _h_points});
 				} else {
 					if(!_cancel_load) parsePoints(response);
 					else handleLoadCanceled( {} );
@@ -340,21 +295,7 @@ var Hyperlapse = function(container, params) {
 		} );
 	};
 
-	var getElevation = function(locations, callback) {
-		var positionalRequest = { locations: locations };
 
-		_elevator.getElevationForLocations(positionalRequest, function(results, status) {
-			if (status == google.maps.ElevationStatus.OK) {
-				callback(results);
-			} else {
-				if(status == google.maps.ElevationStatus.OVER_QUERY_LIMIT) {
-					console.log("Over elevation query limit.");
-				}
-				_use_elevation = false;
-				callback(null);
-			}
-		});
-	};
 
 	var handleDirectionsRoute = function(response) {
 		if(!_is_playing) {
@@ -507,13 +448,7 @@ var Hyperlapse = function(container, params) {
 	 */
 	this.millis = _params.millis || 50;
 
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.elevation_offset = _params.elevation || 0;
-
-	/**
+		/**
 	 * @deprecated should use offset instead
 	 * @default 0
 	 * @type {Number}
