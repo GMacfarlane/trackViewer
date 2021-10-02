@@ -156,7 +156,7 @@ function init() {
 
     var rp = gui.addFolder('Run-time Parameters');
     rp.add(hlp, 'fov', 1, 180).step(1).listen().name("FOV / Deg ").onChange(hyperlapse.setFOV);
-    rp.add(hlp, 'millis', 10, 300).step(1).listen().name("Speed / ms");
+    rp.add(hlp, 'millis', 10, 500).step(1).listen().name("Speed / ms");
     rp.add(hlp.offset, 'x', -360, 360).listen().name("Offset:X / Deg");
     rp.add(hlp.offset, 'y', -180, 180).listen().name("Offset:Y / Deg");
     rp.add(hlp.offset, 'z', -360, 360).listen().name("Tilt / Deg");
@@ -167,7 +167,7 @@ function init() {
 
     var gp = gui.addFolder('Gen-time Parameters');
     gp.add(hlp, 'distance_between_points', 5, 100).listen().name("Dist btwn pts / m")
-    gp.add(hlp, 'max_points', 10, 500).listen().name("Max points");
+    gp.add(hlp, 'max_points', 10, 1000).listen().name("Max points");
     gp.add(hlp, 'gpReset').name("Reset");
     gp.add(o, 'generate').name("Generate Hyperlapse");
     gp.add(hyperlapse, 'load').name("(Re)Load Panoramas");

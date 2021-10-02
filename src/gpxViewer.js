@@ -268,16 +268,41 @@ var Hyperlapse = function(container, zoom) {
 	 */
 	var handleRouteProgress = function (e) { if (self.onRouteProgress) self.onRouteProgress(e); };
 
+    // calculate the bearing from the current (raw) point to the next, in degrees
+    // based on: https://stackoverflow.com/questions/46590154/
+    function direction_of_travel() {
+        var a = _point_index, b = _point_index + 1;
+        if (b >= _raw_points.length) { a--; b--; }
+
+        var srcLat = _raw_points[a].lat().toRad();
+        var srcLng = _raw_points[a].lng().toRad();
+        var dstLat = _raw_points[b].lat().toRad();
+        var dstLng = _raw_points[b].lng().toRad();
+
+        var y = Math.sin(dstLng - srcLng) * Math.cos(dstLat);
+        var x = Math.cos(srcLat) * Math.sin(dstLat) - Math.sin(srcLat) * Math.cos(dstLat) * Math.cos(dstLng - srcLng);
+
+        return (Math.atan2(y, x).toDeg() + 360) % 360;
+    }
+
 	var parsePoints = function(response) {
 
 		_loader.load( _raw_points[_point_index], function() {
             var complete = false;
 
-			if(_loader.id != _prev_pano_id) {
+            // the "rotation" returned from the pano seems to jump around
+            // sometimes so its not always a reliable direction to point the
+            // camera at. If its wildly different (>90 deg) from the apparent
+            // direction of travel, we'll use that instead.
+            var dot = direction_of_travel();
+            var corrected_heading = Math.abs(_loader.rotation.toDeg() - dot) > 90 ? dot : _loader.rotation.toDeg();
+            console.log("i:"+_h_points.length+" heading:"+corrected_heading.toFixed(2)+" origin:"+_loader.rotation.toDeg().toFixed(2)+" dot:"+dot.toFixed(2));
+
+            if(_loader.id != _prev_pano_id) {
 				_prev_pano_id = _loader.id;
 
 				var hp = new HyperlapsePoint( _loader.location, _loader.id, {
-					heading:_loader.rotation,
+					heading: corrected_heading, // degrees
 					pitch: _loader.pitch,
 					copyright: _loader.copyright,
 					image_date: _loader.image_date
@@ -391,9 +416,11 @@ var Hyperlapse = function(container, zoom) {
 			var o_y = hlp.position.y + (hlp.offset.y * t);
 			var o_z = (hlp.offset.z.toRad() * t);
 
-//			var o_heading = (self.use_lookat) ? _lookat_heading - _origin_heading.toDeg() + o_x : o_x;
-			var o_heading = (_forward) ? o_x : o_x - 180;
+            // todo I think this maths needs to be rewritten. Dont understand how it works without using _origin_heading
+			var o_heading = ((_forward) ? o_x : ((o_x + 180) % 360)); // todo _origin_heading? (in Rads)
 			var o_pitch = hlp.position.y + o_y;
+
+            // todo there is a bug here. if you print a msg to the console you'll see it's spinning in a loop.
 
 			var olon = _lon, olat = _lat;
 			_lon = _lon + ( o_heading - olon );
