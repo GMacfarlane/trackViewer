@@ -96,7 +96,7 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  * and this simplifies the duplication of settings and values for the viewer UI.
  */
 var hlp = {
-  fov: 120,     // Field of view/Degrees
+  fov: 120,     // Field of view / Deg
   millis: 200   // Speed / ms
 };
 
@@ -110,7 +110,6 @@ var hlp = {
  * @param {Number} [params.distance_between_points=5]
  * @param {Number} [params.max_points=100]
  * @param {Number} [params.zoom=1]
- * @param {Number} [params.tilt=0]
  */
 var Hyperlapse = function(container, params) {
 
@@ -119,7 +118,7 @@ var Hyperlapse = function(container, params) {
 	var self = this, // todo refac how all these defaults are applied. Put them in an object we can use in the viewer too.
 		_listeners = [],
 		_container = container,
-		_params = params || {},
+		_params = params || {}, // todo deleteme
 		_w = _params.width || 800,
 		_h = _params.height || 400,
 		_d = 20,
@@ -384,7 +383,7 @@ var Hyperlapse = function(container, params) {
 
 			var o_x = self.position.x + (self.offset.x * t);
 			var o_y = self.position.y + (self.offset.y * t);
-			var o_z = self.tilt + (self.offset.z.toRad() * t);
+			var o_z = (self.offset.z.toRad() * t);
 
 			var o_heading = (_forward) ? o_x : o_x - 180; /* should this be _origin_heading.toDeg() rather than o_x? */
 			var o_pitch = _position_y + o_y;
@@ -437,13 +436,6 @@ var Hyperlapse = function(container, params) {
 			}
 		}
 	};
-
-    /**
-	 * @deprecated should use offset instead
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.tilt = _params.tilt || 0;
 
 	/**
 	 * @default {x:0, y:0}
@@ -526,13 +518,11 @@ var Hyperlapse = function(container, params) {
 	};
 
 	/**
-	 * Resets all members to defaults
+	 * Resets to defaults
 	 */
 	this.reset = function() {
 		_raw_points.remove(0,-1);
 		_h_points.remove(0,-1);
-
-		self.tilt = 0;
 
 		_lat = 0;
 		_lon = 0;

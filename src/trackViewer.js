@@ -175,7 +175,6 @@ function init() {
         }
     };
 
-
     var scn = gui.addFolder('Screen size');
     scn.add(o, 'screen_width', window.innerHeight).listen();
     scn.add(o, 'screen_height', window.innerHeight).listen();
@@ -183,6 +182,7 @@ function init() {
     var rp = gui.addFolder('Run-time Parameters');
     rp.add(hlp, 'fov', 1, 180).step(1).name("FOV / Deg ").onChange(hyperlapse.setFOV);
     rp.add(hlp, 'millis', 10, 300).step(1).name("Speed / ms");
+
     rp.open();
 
     var gp = gui.addFolder('Gen-time Parameters');
@@ -220,11 +220,6 @@ function init() {
     var position_y_control = gp.add(o, 'position_y', -180, 180).listen();
     position_y_control.onChange(function(value) {
         hyperlapse.position.y = value;
-    });
-
-    var tilt_control = gp.add(o, 'tilt', -Math.PI, Math.PI);
-    tilt_control.onChange(function(value) {
-        hyperlapse.tilt = value;
     });
 
     gp.add(o, 'generate');
