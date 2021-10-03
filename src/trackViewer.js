@@ -156,12 +156,10 @@ function init() {
 
     var rp = gui.addFolder('Run-time Parameters');
     rp.add(hlp, 'fov', 1, 180).step(1).listen().name("FOV / Deg ").onChange(hyperlapse.setFOV);
-    rp.add(hlp, 'millis', 10, 500).step(1).listen().name("Speed / ms");
-    rp.add(hlp.offset, 'x', -360, 360).listen().name("Offset:X / Deg");
-    rp.add(hlp.offset, 'y', -180, 180).listen().name("Offset:Y / Deg");
-    rp.add(hlp.offset, 'z', -360, 360).listen().name("Tilt / Deg");
-    rp.add(hlp.position, 'x', -360, 360).listen().name("Position:X");
-    rp.add(hlp.position, 'y', -180, 180).listen().name("Position:Y");
+    rp.add(hlp, 'millis', 10, 500).step(1).listen().name("Play speed / ms");
+    rp.add(hlp.position, 'x', -360, 360).listen().name("Offset:X / Deg");
+    rp.add(hlp.position, 'y', -180, 180).listen().name("Offset:Y / Deg");
+    rp.add(hlp, 'tilt', -360, 360).listen().name("Tilt / Deg");
     rp.add(hlp, 'rpReset').name("Reset");
     rp.open();
 

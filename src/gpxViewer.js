@@ -35,58 +35,20 @@ var pointOnLine = function(t, a, b) {
  * @class
  * @classdesc Value object for a single point in a Hyperlapse sequence.
  * @constructor
- * @param {google.maps.LatLng} location
- * @param {String} pano_id
- * @param {Object} params
- * @param {Number} [params.heading=0]
- * @param {Number} [params.pitch=0]
- * @param {Image} [params.image=null]
- * @param {String} [params.copyright="© 2013 Google"]
- * @param {String} [params.image_date=""]
  */
 var HyperlapsePoint = function(location, pano_id, params ) {
 
 	var self = this;
 	var params = params || {};
 
-	/**
-	 * @type {google.maps.LatLng}
-	 */
 	this.location = location;
-
-	/**
-	 * @type {Number}
-	 */
 	this.pano_id = pano_id;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
 	this.heading = params.heading || 0;
-
-	/**
-	 * @default 0
-	 * @type {Number}
-	 */
-	this.pitch = params.pitch || 0; // todo does this do anything?
-
-	/**
-	 * @type {Image}
-	 */
+	this.reverse = params.reverse || false;
+	this.pitch = params.pitch || 0;
 	this.image = params.image || null;
-
-	/**
-	 * @default "© 2013 Google"
-	 * @type {String}
-	 */
 	this.copyright = params.copyright || "© 2013 Google";
-
-	/**
-	 * @type {String}
-	 */
 	this.image_date = params.image_date || "";
-
 };
 
 /*
@@ -97,11 +59,11 @@ var HyperlapsePoint = function(location, pano_id, params ) {
  */
 var hlp = {
     // run-time parameters
-    fov: 0, millis: 0, offset: {x:0, y:0, z:0}, position: {x:0, y:0},
+    fov: 0, millis: 0, tilt:0, position: {x:0, y:0},
     rpReset: function () {
         hlp.fov = 120;                                          // Field of view / Deg
         hlp.millis = 200;                                       // Speed / ms
-        hlp.offset.x = 0; hlp.offset.y = 0; hlp.offset.z = 0;   // View offset (z=Tilt) / Deg
+        hlp.tilt = 0;                                           // Camera tilt / Deg
         hlp.position.x = 0; hlp.position.y = 0;                 // Camera position / Deg
     },
 
@@ -116,14 +78,10 @@ var hlp = {
     scrn_width: 800, scrn_height: 400
 }
 hlp.rpReset(); hlp.gpReset();
+
 /**
  * @class
  * @constructor
- * @param {Node} container - HTML element
- * @param {Object} params
- * @param {Number} [params.width=800]
- * @param {Number} [params.height=400]
- * @param {Number} [params.zoom=1]
  */
 var Hyperlapse = function(container, zoom) {
 
@@ -137,7 +95,6 @@ var Hyperlapse = function(container, zoom) {
 		_lat = 0, _lon = 0,
 		_is_playing = false, _is_loading = false,
 		_point_index = 0,
-		_origin_heading = 0, _origin_pitch = 0,
 		_forward = true,
 		_canvas, _context,
 		_camera, _scene, _renderer, _mesh,
@@ -290,19 +247,18 @@ var Hyperlapse = function(container, zoom) {
 		_loader.load( _raw_points[_point_index], function() {
             var complete = false;
 
-            // the "rotation" returned from the pano seems to jump around
-            // sometimes so its not always a reliable direction to point the
-            // camera at. If its wildly different (>90 deg) from the apparent
-            // direction of travel, we'll use that instead.
+            // The "rotation" returned from the pano jumps around because the collection
+            // of pictures have been accumulated from multiple vehicles travelling in multiple
+            // directions so its not always a reliable direction to point the camera at.
+            // So compute whether we need to look in the other direction!
             var dot = direction_of_travel();
-            var corrected_heading = Math.abs(_loader.rotation.toDeg() - dot) > 90 ? dot : _loader.rotation.toDeg();
-            console.log("i:"+_h_points.length+" heading:"+corrected_heading.toFixed(2)+" origin:"+_loader.rotation.toDeg().toFixed(2)+" dot:"+dot.toFixed(2));
 
             if(_loader.id != _prev_pano_id) {
 				_prev_pano_id = _loader.id;
 
 				var hp = new HyperlapsePoint( _loader.location, _loader.id, {
-					heading: corrected_heading, // degrees
+					heading: _loader.rotation,
+                    reverse: (Math.abs(_loader.rotation.toDeg() - dot) > 90), // true => car travelling the other way, so we need to reverse the heading
 					pitch: _loader.pitch,
 					copyright: _loader.copyright,
 					image_date: _loader.image_date
@@ -399,9 +355,6 @@ var Hyperlapse = function(container, zoom) {
 		_mesh.material.map.image = _h_points[_point_index].image;
 		_mesh.material.map.needsUpdate = true;
 
-		_origin_heading = _h_points[_point_index].heading;
-		_origin_pitch = _h_points[_point_index].pitch;
-
 		handleFrame({
 			position:_point_index,
 			point: _h_points[_point_index]
@@ -410,34 +363,28 @@ var Hyperlapse = function(container, zoom) {
 
 	var render = function() {
 		if(!_is_loading && self.length()>0) {
-			var t = _point_index/(self.length());
+            var point = _h_points[_point_index];
 
-			var o_x = hlp.position.x + (hlp.offset.x * t);
-			var o_y = hlp.position.y + (hlp.offset.y * t);
-			var o_z = (hlp.offset.z.toRad() * t);
-
-            // todo I think this maths needs to be rewritten. Dont understand how it works without using _origin_heading
-			var o_heading = ((_forward) ? o_x : ((o_x + 180) % 360)); // todo _origin_heading? (in Rads)
-			var o_pitch = hlp.position.y + o_y;
+			var heading = _forward ? hlp.position.x : ((hlp.position.x + 180) % 360); // correct for direction of travel along the track
+			heading = point.reverse ? ((heading + 180) % 360) : heading; // correct for direction of travel by the photo car
 
             // todo there is a bug here. if you print a msg to the console you'll see it's spinning in a loop.
 
-			var olon = _lon, olat = _lat;
-			_lon = _lon + ( o_heading - olon );
-			_lat = _lat + ( o_pitch - olat );
+            var olon = _lon, olat = _lat;
+            _lon = _lon + ( heading - olon );
+            _lat = _lat + ( hlp.position.y - olat );
+            _lat = Math.max( - 85, Math.min( 85, _lat ) );
+            var phi = ( 90 - _lat ).toRad();
+            var theta = _lon.toRad();
 
-			_lat = Math.max( - 85, Math.min( 85, _lat ) );
-			var phi = ( 90 - _lat ).toRad();
-			var theta = _lon.toRad();
+            _camera.target.x = 500 * Math.sin( phi ) * Math.cos( theta );
+            _camera.target.y = 500 * Math.cos( phi );
+            _camera.target.z = 500 * Math.sin( phi ) * Math.sin( theta );
+            _camera.lookAt( _camera.target );
+            _camera.rotation.z -= hlp.tilt.toRad();
 
-			_camera.target.x = 500 * Math.sin( phi ) * Math.cos( theta );
-			_camera.target.y = 500 * Math.cos( phi );
-			_camera.target.z = 500 * Math.sin( phi ) * Math.sin( theta );
-			_camera.lookAt( _camera.target );
-			_camera.rotation.z -= o_z;
-
-			_mesh.rotation.z = _origin_pitch.toRad();
-			_renderer.render( _scene, _camera );
+            _mesh.rotation.z = point.pitch.toRad();
+            _renderer.render( _scene, _camera );
 		}
 	};
 
@@ -471,39 +418,15 @@ var Hyperlapse = function(container, zoom) {
 		}
 	};
 
-	/**
-	 * @returns {boolean}
-	 */
-	this.isPlaying = function() { return _is_playing; };
 
-	/**
-	 * @returns {boolean}
-	 */
-	this.isLoading = function() { return _is_loading; };
-
-	/**
-	 * @returns {Number}
-	 */
+	//this.isPlaying = function() { return _is_playing; };// todo delete these unused methods
+    //this.isLoading = function() { return _is_loading; };
 	this.length = function() { return _h_points.length; };
+	//this.webgl = function() { return _renderer; };
+	//this.getCurrentImage = function() {
+	//	return _h_points[_point_index].image;
+	//};
 
-	/**
-	 * @returns {THREE.WebGLRenderer}
-	 */
-	this.webgl = function() { return _renderer; };
-
-	/**
-	 * @returns {Image}
-	 */
-	this.getCurrentImage = function() {
-		return _h_points[_point_index].image;
-	};
-
-	/**
-	 * @returns {HyperlapsePoint}
-	 */
-	this.getCurrentPoint = function() {
-		return _h_points[_point_index];
-	};
 
 	/**
 	 * @param {Number} v
@@ -530,14 +453,8 @@ var Hyperlapse = function(container, zoom) {
 	this.reset = function() {
 		_raw_points.remove(0,-1);
 		_h_points.remove(0,-1);
-
-		_lat = 0;
-		_lon = 0;
-
+		_lat = 0; _lon = 0;
 		_point_index = 0;
-		_origin_heading = 0;
-		_origin_pitch = 0;
-
 		_forward = true;
 	};
 
@@ -578,13 +495,6 @@ var Hyperlapse = function(container, zoom) {
 	};
 
 	/**
-	 * @returns {google.maps.LatLng}
-	 */
-	this.getCameraPosition = function() {
-		return new google.maps.LatLng(_lat, _lon);
-	};
-
-	/**
 	 * Animate through all frames in sequence
 	 * @fires Hyperlapse#onPlay
 	 */
@@ -613,6 +523,7 @@ var Hyperlapse = function(container, zoom) {
 
 		if(_point_index+1 != _h_points.length) {
 			_point_index++;
+			_forward = true;
 			drawMaterial();
 		}
 	};
@@ -626,6 +537,7 @@ var Hyperlapse = function(container, zoom) {
 
 		if(_point_index-1 !== 0) {
 			_point_index--;
+			_forward = false;
 			drawMaterial();
 		}
 	};
