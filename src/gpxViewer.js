@@ -77,7 +77,8 @@ var hlp = {
     // other ( see Hyperlapse.setSize() )
     scrn_width: 800, scrn_height: 400
 }
-hlp.rpReset(); hlp.gpReset();
+hlp.rpReset();
+hlp.gpReset();
 
 /**
  * @class
@@ -248,9 +249,9 @@ var Hyperlapse = function(container, zoom) {
             var complete = false;
 
             // The "rotation" returned from the pano jumps around because the collection
-            // of pictures have been accumulated from multiple vehicles travelling in multiple
-            // directions so its not always a reliable direction to point the camera at.
-            // So compute whether we need to look in the other direction!
+            // of pictures have been accumulated from multiple vehicles travelling in different
+            // directions so it's not a reliable direction to point the camera at.
+            // So, we need to compute whether to look in the opposite direction!
             var dot = direction_of_travel();
 
             if(_loader.id != _prev_pano_id) {
@@ -426,7 +427,6 @@ var Hyperlapse = function(container, zoom) {
 	//this.getCurrentImage = function() {
 	//	return _h_points[_point_index].image;
 	//};
-
 
 	/**
 	 * @param {Number} v
