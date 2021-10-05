@@ -67,6 +67,7 @@ function init() {
             map: map
             })
         );
+        show( "Number of Points: "+ hyperlapse.length() );
     };
 
     hyperlapse.onRouteComplete = function(e) {
@@ -157,9 +158,9 @@ function init() {
     var rp = gui.addFolder('Run-time Parameters');
     rp.add(hlp, 'fov', 1, 180).step(1).listen().name("FOV / Deg ").onChange(hyperlapse.setFOV);
     rp.add(hlp, 'millis', 10, 500).step(1).listen().name("Play speed / ms");
-    rp.add(hlp.position, 'x', -360, 360).listen().name("Offset:X / Deg");
-    rp.add(hlp.position, 'y', -180, 180).listen().name("Offset:Y / Deg");
-    rp.add(hlp, 'tilt', -360, 360).listen().name("Tilt / Deg");
+    rp.add(hlp.position, 'x', -360, 360).listen().name("Yaw:X / Deg");
+    rp.add(hlp.position, 'y', -180, 180).listen().name("Pitch:Y / Deg");
+    rp.add(hlp, 'roll', -360, 360).listen().name("Roll:Z / Deg");
     rp.add(hlp, 'rpReset').name("Reset");
     rp.open();
 
@@ -168,7 +169,7 @@ function init() {
     gp.add(hlp, 'max_points', 10, 1000).listen().name("Max points");
     gp.add(hlp, 'gpReset').name("Reset");
     gp.add(o, 'generate').name("Generate Hyperlapse");
-    gp.add(hyperlapse, 'load').name("(Re)Load Panoramas");
+    ///gp.add(hyperlapse, 'load').name("(Re)Load Panoramas");
     gp.open();
 
     var play_controls = gui.addFolder('Player Controls');
