@@ -331,6 +331,17 @@ var Hyperlapse = function(container, zoom) {
 		});
 	};
 
+	/*
+	TODO list
+	1. add support for reading GPX files and try various ways of diaplaying them
+		- whole route in overview at a given number of points
+		- first 100 points (in segment) at max detail 
+		- first 2.5K (in segment) at max detail
+	2. try speeding it up: 
+		- can we fetch/load multiple pano points in parallel (after building the route)?
+		- can we merge fetching the panoID and loading the panoID
+	*/
+
 	var render = function() {
 		if(!_is_loading && self.length()>0) {
             var point = _h_points[_point_index];
