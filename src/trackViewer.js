@@ -165,8 +165,8 @@ function init() {
     rp.open();
 
     var gp = gui.addFolder('Gen-time Parameters');
-    gp.add(hlp, 'distance_between_points', 5, 100).listen().name("Dist btwn pts / m")
-    gp.add(hlp, 'max_points', 10, 1000).listen().name("Max points");
+    gp.add(hlp, 'distance_between_points', 1, 100).listen().name("Dist btwn pts / m")
+    gp.add(hlp, 'max_points', 10, 5000).listen().name("Max points");
     gp.add(hlp, 'gpReset').name("Reset");
     gp.add(o, 'generate').name("Generate Hyperlapse");
     ///gp.add(hyperlapse, 'load').name("(Re)Load Panoramas");
