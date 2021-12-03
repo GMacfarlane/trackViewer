@@ -1,5 +1,14 @@
-var start_point = new google.maps.LatLng(51.30750,-0.57285)
-var end_point   = new google.maps.LatLng(51.29360,-0.60011);
+// see https://gpxplanner.app/u/Trackviewer-Woking (v jerky, some camera faults)
+// var start_point = new google.maps.LatLng(51.30750,-0.57285)
+// var end_point   = new google.maps.LatLng(51.29360,-0.60011);
+
+// see https://gpxplanner.app/u/Trackviewer-Widecombe (seems to stall on some frames at finer granularity; more than likely a trackviewer bug, poor err handling for missing frames)
+var start_point = new google.maps.LatLng(50.576829, -3.811480)
+var end_point   = new google.maps.LatLng(50.57102871319183, -3.778264645614895);
+
+// see https://www.google.com/maps/dir/Bowbridge+Rd,+Newark/Lord+Ted+-+Pub+%26+Carvery,+Lord+Ted,+Farndon+Road,+Newark/@53.068185,-0.8281416,15z/data=!3m2!4b1!5s0x4879b513250125b7:0x78f831bbee53c5d!4m14!4m13!1m5!1m1!1s0x4879b54a0af61c6d:0x25e1e21271e715ed!2m2!1d-0.8041713!2d53.0647981!1m5!1m1!1s0x4879b515b75488d1:0xe983d7a16166107a!2m2!1d-0.8344123!2d53.0653141!3e0
+// var start_point = new google.maps.LatLng(53.06480369650722, -0.8041914385476876)
+// var end_point   = new google.maps.LatLng(53.06542306689625, -0.834600552188686);
 
 var map, directions_renderer, directions_service, streetview_service;
 var start_pin, end_pin, camera_pin;

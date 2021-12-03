@@ -392,11 +392,13 @@ var Hyperlapse = function(container, zoom) {
 			if(++_point_index == _h_points.length) {
 				_point_index = _h_points.length-1;
 				_forward = !_forward;
+				self.pause(); // stop at each end - its confusing to watch, otherwise
 			}
 		} else {
 			if(--_point_index == -1) {
 				_point_index = 0;
 				_forward = !_forward;
+				self.pause(); // stop at each end - its confusing to watch, otherwise
 			}
 		}
 	};
